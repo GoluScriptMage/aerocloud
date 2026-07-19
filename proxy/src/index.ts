@@ -1,3 +1,10 @@
+/**
+ * Proxy main work serving the url 
+ * e.g. http://4gsd4h.localhost:8080 
+ * We will check for route h serve the file for this route 
+ */
+
+
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
