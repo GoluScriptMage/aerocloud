@@ -13,6 +13,7 @@ const storage = multer.memoryStorage(); // Store files in memory for processing
 const upload = multer({ storage: storage });
 
 // 2. Define a route to handle file uploads
+// file is name defined in index.ts(cli) & multer finds for file parse and save in req.file
 app.post("/deploy", upload.single("file"), (req, res) => {
 
     // Check if a file exists
@@ -34,6 +35,21 @@ app.post("/deploy", upload.single("file"), (req, res) => {
     zip.extractAllTo(targetDir, true);
     console.log(chalk.green.italic("Extraction Completed"));
 });
+
+app.get("/list", (req, res) => {
+
+    const dirPath = path.join(process.cwd(), 'deployments');
+
+    // 1. Read the folder & get only folders { name, deployedAt }
+    const dirs = fs.readdirSync(dirPath, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map((d) => ({
+            subDomain: d.name,
+            deployedAt: fs.statSync(path.join(dirPath, d.name)).birthtime
+        }))
+
+    res.status(200).json(dirs)
+})
 
 app.listen(3000, () => {
     console.log("Server running on port 3000");

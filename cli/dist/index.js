@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
+import chalk from "chalk";
 const program = new Command();
 // Define the "deploy" command
 program
@@ -28,6 +29,26 @@ program
     const result = await response.json();
     console.log(result);
     console.log("Deployment completed successfully!");
+});
+program
+    .command("list")
+    .action(async () => {
+    // Req on localhost:3000/list
+    const response = await fetch("http://localhost:3000/list", {
+        method: "GET"
+    });
+    // Check for response fail
+    if (!response.ok) {
+        console.error("Failed to fetch deployments list.");
+    }
+    const deployments = await response.json();
+    deployments.forEach((dep) => {
+        const formattedDate = new Date(dep.deployedAt.toLocaleString("en-US", {
+            dateStyle: 'short',
+            timeStyle: 'short'
+        }));
+        console.log(chalk.italic.bold(`- Subdomain: ${dep.subDomain} | Deployed: ${formattedDate}`));
+    });
 });
 // Parse the command-line arguments
 program.parse(process.argv);
