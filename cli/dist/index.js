@@ -3,13 +3,22 @@ import { Command } from "commander";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
 import chalk from "chalk";
+import { initConfigFile } from "./utils/configHelper.js";
 const program = new Command();
 // Define the "deploy" command
 program
     .name("aerocloud")
     .description("Deploy your application to aerocloud");
 program
+    .command("init")
+    .description("Initialize the aerocloud configuration file")
+    .action(() => {
+    console.log("Initializing aerocloud configuration file...");
+    initConfigFile();
+});
+program
     .command("deploy")
+    .description("Deploy your application to aerocloud")
     .action(async () => {
     console.log("Deploying your application to aerocloud...");
     // 1. get output dir of zip file
@@ -32,6 +41,7 @@ program
 });
 program
     .command("list")
+    .description("List all deployments")
     .action(async () => {
     // Req on localhost:3000/list
     const response = await fetch("http://localhost:3000/list", {

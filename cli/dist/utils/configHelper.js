@@ -1,0 +1,20 @@
+import path from 'path';
+import fs from 'fs';
+import chalk from 'chalk';
+export function initConfigFile() {
+    const fileName = 'aerocloud.json';
+    const data = {
+        name: 'default',
+        _comment: 'This is default config file for deployment. You can change the name to what u want. This name will be used as sub-domain for your deployment. e.g. http://<name>.localhost:8080',
+        publish: './dist',
+        _comment_publish: 'Path to the build directory containing the files to be published',
+        buildCommand: '',
+        _comment_buildCommand: 'Optional: Command to build your project before deployment. If specified, this command will be executed before creating the archive for deployment.'
+    };
+    // Check if file exists
+    const targetFilePath = path.join(process.cwd(), fileName);
+    if (!fs.existsSync(targetFilePath)) {
+        fs.writeFileSync(targetFilePath, JSON.stringify(data, null, 4), 'utf-8');
+    }
+    console.log(chalk.blue.italic(`Config file '${fileName}' has been initialized in the current directory.`));
+}
