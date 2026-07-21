@@ -3,6 +3,7 @@ import { ZipArchive } from "archiver";
 import path from "node:path";
 import fs from "node:fs";
 import chalk from "chalk";
+import { readConfigFile, runBuildCommandIfExists } from "./configHelper.js";
 
 export function createArchive(): Promise<string> {
     return new Promise<string>((resolve, reject) => {
@@ -26,9 +27,20 @@ export function createArchive(): Promise<string> {
             resolve(outputDirPath); // Resolve the promise when the archive is finalized
         })
 
+        const buildDir: string = readConfigFile('publish') || ".";
+        runBuildCommandIfExists(); // Run the build command if it exists in the configuration file
+
+        if (!buildDir || !fs.existsSync(path.join(process.cwd(), buildDir))) {
+            console.log(chalk.red.italic(`Build directory '${buildDir}' does not exist. Please check your configuration.`));
+            reject(new Error(`Build directory '${buildDir}' does not exist.`));
+            return;
+        }
+
+
+
         // Step 3: Add files to the archive
         archive.glob("**/*", {
-            cwd: process.cwd(), // Current working directory
+            cwd: buildDir || process.cwd(), // Current working directory
             ignore: ["node_modules/**", "dist/**", "test.zip"], // Ignore node_modules, dist, and the output zip file itself
             dot: true // Include hidden files (.e.g .gitignore)
         });

@@ -4,7 +4,7 @@ import { Command } from "commander";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
 import chalk from "chalk";
-import { initConfigFile } from "./utils/configHelper.js";
+import { initConfigFile, readConfigFile } from "./utils/configHelper.js";
 
 const program = new Command();
 
@@ -17,7 +17,6 @@ program
     .command("init")
     .description("Initialize the aerocloud configuration file")
     .action(() => {
-        console.log("Initializing aerocloud configuration file...");
         initConfigFile();
     })
 
@@ -35,10 +34,12 @@ program
 
         // 3. Set the Blob
         const fileBlob = new Blob([outputFileBuffer], { type: "application/zip" });
+        const customFileName: string = readConfigFile('name'); // You can customize the file name if needed
 
         // 4. Create Formdata & append fileBlob
         const formData = new FormData();
         formData.append('file', fileBlob, 'test.zip');
+        formData.append('name', customFileName);
 
         // 5. Send the file using fetch post
         const response = await fetch("http://localhost:3000/deploy", {

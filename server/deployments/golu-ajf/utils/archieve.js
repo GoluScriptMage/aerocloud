@@ -22,7 +22,7 @@ export function createArchive() {
             console.log(chalk.italic.green(`Archive created successfully`));
             resolve(outputDirPath); // Resolve the promise when the archive is finalized
         });
-        const buildDir = readConfigFile('publish') || ".";
+        const buildDir = readConfigFile('publish');
         runBuildCommandIfExists(); // Run the build command if it exists in the configuration file
         if (!buildDir || !fs.existsSync(path.join(process.cwd(), buildDir))) {
             console.log(chalk.red.italic(`Build directory '${buildDir}' does not exist. Please check your configuration.`));

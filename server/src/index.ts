@@ -22,8 +22,10 @@ app.post("/deploy", upload.single("file"), (req, res) => {
         return res.status(400).send("No file uploaded.");
     }
 
+    const fileName = req.body.name;
+
     // 1. Create sub-Domain & create outputDirPath
-    const subDomain = crypto.randomBytes(3).toString('hex'); // returns (.e.g 1a2bc3)
+    const subDomain = fileName || crypto.randomBytes(3).toString('hex'); // returns (.e.g 1a2bc3)
     const targetDir = path.join(process.cwd(), 'deployments', subDomain);
 
     // 2. Create dir on targetDir
@@ -34,6 +36,7 @@ app.post("/deploy", upload.single("file"), (req, res) => {
     const zip = new AdmZip(fileBuffer);
     zip.extractAllTo(targetDir, true);
     console.log(chalk.green.italic("Extraction Completed"));
+    return res.status(200).json({ message: "file uploaded and extracted successfully", subDomain: subDomain });
 });
 
 app.get("/list", (req, res) => {
