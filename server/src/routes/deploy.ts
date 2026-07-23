@@ -6,6 +6,9 @@ import AdmZip from "adm-zip";
 import chalk from "chalk";
 import express from "express";
 
+/**
+ * Registers the deployment endpoint for uploading and extracting ZIP archives.
+ */
 export function deployRoutes(app: express.Express) {
 
     // 1. Configure multer storage
