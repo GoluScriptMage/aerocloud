@@ -6,4 +6,6 @@ Day 3 - added list route to get deployed subdomains and their deployedAt timing 
 Day 4 - added destroy route to delete a deployed project
 Day 5 - Implemented configHelper where added runBuildCmd, read or create config file on command init added custom subdomain name and fixes some issues
 
-## Level - 2 (DB & )
+## Level - 2 (DB Schema & refractored )
+
+Day - 6 Today was really hard at end took lot of time to fix and found the bug but it got solved after i reset head and reopened vs code
