@@ -5,6 +5,7 @@ import crypto from "crypto"
 import path from "path";
 import fs from "node:fs"
 import chalk from "chalk";
+import db from "./config/db.js";
 
 const app = express();
 
