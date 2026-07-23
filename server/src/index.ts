@@ -6,40 +6,13 @@ import path from "path";
 import fs from "node:fs"
 import chalk from "chalk";
 import db from "./config/db.js";
+import { deployRoutes } from "./routes/deploy.js";
 
 const app = express();
 
-// 1. Configure multer storage
-const storage = multer.memoryStorage(); // Store files in memory for processing
-const upload = multer({ storage: storage });
+deployRoutes(app);
 
 // 2. Define a route to handle file uploads
-// file is name defined in index.ts(cli) & multer finds for file parse and save in req.file
-app.post("/deploy", upload.single("file"), (req, res) => {
-
-    // Check if a file exists
-    const file = (req as any).file;
-    if (!file) {
-        return res.status(400).send("No file uploaded.");
-    }
-
-    const fileName = req.body.name;
-
-    // 1. Create sub-Domain & create outputDirPath
-    const subDomain = fileName || crypto.randomBytes(3).toString('hex'); // returns (.e.g 1a2bc3)
-    const targetDir = path.join(process.cwd(), 'deployments', subDomain);
-
-    // 2. Create dir on targetDir
-    fs.mkdirSync(targetDir, { recursive: true });
-
-    // 3. Create file buffer and AdmZip and extract to target Dir
-    const fileBuffer = file.buffer;
-    const zip = new AdmZip(fileBuffer);
-    zip.extractAllTo(targetDir, true);
-    console.log(chalk.green.italic("Extraction Completed"));
-    return res.status(200).json({ message: "file uploaded and extracted successfully", subDomain: subDomain });
-});
-
 app.get("/list", (req, res) => {
 
     const dirPath = path.join(process.cwd(), 'deployments');
