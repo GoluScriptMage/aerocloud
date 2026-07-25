@@ -36,8 +36,6 @@ export function createArchive(): Promise<string> {
             return;
         }
 
-
-
         // Step 3: Add files to the archive
         archive.glob("**/*", {
             cwd: buildDir || process.cwd(), // Current working directory
