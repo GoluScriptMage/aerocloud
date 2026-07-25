@@ -7,8 +7,8 @@ const db: DatabaseType = new Database('aerocloud.db');
 db.exec(`
     CREATE TABLE IF NOT EXISTS deployments (
         subdomain TEXT PRIMARY KEY,
-        containerId TEXT NULLABLE,
-        port INTEGER NULLABLE,
+        containerId TEXT NULL,
+        port INTEGER NULL,
         status TEXT,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -22,7 +22,7 @@ export function saveDeployment(subdomain: string, port: number, status: string) 
 
 // Function to retrieve one deployment information from the database
 export function getDeployment(subdomain: string) {
-    const statement = db.prepare('SELECT FROM * deployment WHERE subdomain = ?')
+    const statement = db.prepare('SELECT * FROM deployments WHERE subdomain = ?')
     return statement.get(subdomain);
 }
 
@@ -35,7 +35,7 @@ export function updateDeployment(subdomain: string, status: string, containerId:
 // GET All deployments
 export function getAllDeployments() {
     const statement = db.prepare('SELECT * FROM deployments');
-    return statement.get();
+    return statement.all();
 }
 
 // Delete deployment

@@ -9,4 +9,5 @@ Day 5 - Implemented configHelper where added runBuildCmd, read or create config 
 ## Level - 2 (DB Schema & refractored )
 
 Day - 6 Today was really hard at end took lot of time to fix and found the bug but it got solved after i reset head and reopened vs code
-
+Day - 7 I guess i did some refractoring and did some testing for the git alias cmd git ship (it do merge current with main and delete divergion branch)
+Day 8 - Implemented the docker image build for backend and nextjs project & also created auto docker file insertion today is really fun day after seeing those success 
