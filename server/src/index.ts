@@ -7,6 +7,7 @@ import fs from "node:fs"
 import chalk from "chalk";
 import db from "./config/db.js";
 import { deployRoutes } from "./routes/deploy.js";
+import { Logger } from "./utils/logger.js";
 
 const app = express();
 
@@ -29,5 +30,5 @@ app.get("/list", (req, res) => {
 })
 
 app.listen(3000, () => {
-    console.log("Server running on port 3000");
+    Logger.info("Server running on port 3000");
 })

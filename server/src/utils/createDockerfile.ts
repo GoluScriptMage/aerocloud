@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { Logger } from './logger.js';
 
 /**
  * Automatically generates a production-ready Dockerfile in the target directory 
@@ -43,4 +44,6 @@ export function ensureDockerFile(targetDir: string): void {
     // Combine lines with standard system line breaks and write the file
     const content = dockerfileLines.join('\n');
     fs.writeFileSync(dockerFilePath, content, 'utf-8');
+
+    Logger.info(`Dockerfile has been generated at: ${dockerFilePath}`);
 }

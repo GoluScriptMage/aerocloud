@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
-import chalk from 'chalk';
 import { execSync } from 'child_process';
+import { Logger } from './logger.js';
 // Function to initialize the aerocloud configuration file
 export function initConfigFile() {
     const fileName = 'aerocloud.json';
@@ -18,13 +18,13 @@ export function initConfigFile() {
     if (!fs.existsSync(targetFilePath)) {
         fs.writeFileSync(targetFilePath, JSON.stringify(data, null, 4), 'utf-8');
     }
-    console.log(chalk.blue.italic(`Config file '${fileName}' has been initialized in the current directory.`));
+    Logger.success(`Config file '${fileName}' has been initialized in the current directory.`);
 }
 // Function to read the aerocloud configuration file
 export function readConfigFile(params) {
     const targetFilePath = path.join(process.cwd(), 'aerocloud.json');
     if (!fs.existsSync(targetFilePath)) {
-        console.log(chalk.red.italic(`Config file 'aerocloud.json' not found in the current directory.`));
+        Logger.error(`Config file 'aerocloud.json' not found in the current directory.`);
         return null;
     }
     const configData = JSON.parse(fs.readFileSync(targetFilePath, 'utf-8'));
@@ -37,14 +37,13 @@ export function readConfigFile(params) {
 export function runBuildCommandIfExists() {
     const buildCommand = readConfigFile('buildCommand');
     if (buildCommand) {
-        console.log(chalk.blue.italic(`Executing build command: ${buildCommand}`));
+        Logger.info(`Executing build command: ${buildCommand}`);
         try {
             // Execute the build command
             execSync(buildCommand, { stdio: 'inherit', shell: true });
-            console.log(chalk.green.italic('Build command executed successfully.'));
         }
         catch (error) {
-            console.error(chalk.red.italic('Error executing build command:'));
+            Logger.error('Error executing build command:');
             process.exit(1); // Exit the process with an error code
         }
     }
