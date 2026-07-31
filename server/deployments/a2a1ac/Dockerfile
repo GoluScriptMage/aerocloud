@@ -13,6 +13,9 @@ RUN npm ci
 # Copy the rest of the application files into the working directory
 COPY . .
 
+# Compile TypeScript / build assets inside the container (if build script exists)
+RUN npm run build --if-present
+
 # Document that the container intends to listen on port 3000 at runtime
 EXPOSE 3000
 

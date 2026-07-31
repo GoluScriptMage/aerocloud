@@ -84,7 +84,7 @@ export function deployRoutes(app: express.Express) {
             /**
              * Main Docker Build Process: 
              */
-            
+
             // 1. Build the docker image from the tar stream
             docker.buildImage(tarStream, { t: imageName }, async (err, stream) => {
                 // Handle the completion of the Docker build process

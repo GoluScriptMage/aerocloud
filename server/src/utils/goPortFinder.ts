@@ -22,7 +22,8 @@ export async function findAvailablePort(startPort: number = 1024, endPort: numbe
         const result = exec.execFileSync(binaryPath, args, { encoding: "utf-8" });
         const port = parseInt(result.trim(), 10);
 
-        if (isNaN(port) || port < startPort || port > endPort) {
+        if (isNaN(port) || port 
+        < startPort || port > endPort) {
             Logger.error(`Error: Invalid port returned by goportscan: ${result}`);
             process.exit(1);
         }
