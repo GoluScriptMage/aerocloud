@@ -27,9 +27,9 @@ export function getDeployment(subdomain: string) {
 }
 
 // Update deployment status/container
-export function updateDeployment(subdomain: string, status: string, containerId: string) {
-    const statement = db.prepare('UPDATE deployments SET containerId = ?, status = ? WHERE subdomain = ?')
-    statement.run(containerId, status, subdomain);
+export function updateDeployment(subdomain: string, status: string, containerId: string, port?: number) {
+    const statement = db.prepare('UPDATE deployments SET containerId = ?, status = ?, port = ? WHERE subdomain = ?')
+    statement.run(containerId, status, port, subdomain);
 }
 
 // GET All deployments

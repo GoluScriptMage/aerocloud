@@ -3,12 +3,14 @@ import crypto from "crypto";
 import path from "path";
 import fs from "node:fs";
 import AdmZip from "adm-zip";
-import chalk from "chalk";
 import express from "express";
-import { getDeployment } from "../config/db.js";
+import { getDeployment, updateDeployment } from "../config/db.js";
 import * as tar from 'tar';
 import docker from "../config/docker.js";
 import { ensureDockerFile } from "../utils/createDockerfile.js";
+import { saveDeployment } from "../config/db.js";
+import { findAvailablePort } from "../utils/goPortFinder.js";
+import { Logger } from "../utils/logger.js";
 
 export function deployRoutes(app: express.Express) {
 
@@ -19,12 +21,11 @@ export function deployRoutes(app: express.Express) {
     // 2. Define a route to handle file uploads
     // file is name defined in index.ts(cli) & multer finds for file parse and save in req.file
     app.post("/deploy", upload.single("file"), (req, res) => {
-        console.log(chalk.yellowBright.italic("Received a deployment request"));
+        Logger.info("Received a deployment request");
 
         /**
          * Important: Check for subdomain if already exists in db
          */
-
         const data = getDeployment(req.body.name);
         if (data) {
             return res.status(409).json({
@@ -41,11 +42,11 @@ export function deployRoutes(app: express.Express) {
         }
 
         const fileName = req.body.name;
+        const zipName = fileName ? `${fileName}-test.zip` : "test.zip";
 
         // 1. Create sub-Domain & create outputDirPath
         const subDomain = fileName || crypto.randomBytes(3).toString('hex'); // returns (.e.g 1a2bc3)
         const targetDir = path.join(process.cwd(), 'deployments', subDomain);
-        console.log((`Deploying to subdomain: ${chalk.bold(subDomain)}`));
 
         // 2. Create dir on targetDir
         fs.mkdirSync(targetDir, { recursive: true });
@@ -55,6 +56,9 @@ export function deployRoutes(app: express.Express) {
         const zip = new AdmZip(fileBuffer);
 
         zip.extractAllTo(targetDir, true);
+
+        // 4. Save deployment in db with status "deploying"
+        saveDeployment(subDomain, 0, "deploying")
 
         /**
          * Important: If the uploaded project has package.json file, We will build and run using docker.
@@ -75,23 +79,68 @@ export function deployRoutes(app: express.Express) {
                     filter: (path) => !path.includes('node_modules') // Exclude node_modules from the tarball
                 }, ['.']) as unknown as NodeJS.ReadableStream; // cast to satisfy docker buildImage type
 
-            const imageName = `aerocloud/${subDomain}:latest`
+            const imageName = `aerocloud/${subDomain}:latest` // Image Name
 
-            docker.buildImage(tarStream, { t: imageName }, (err, stream) => {
+            /**
+             * Main Docker Build Process: 
+             */
+
+            // 1. Build the docker image from the tar stream
+            docker.buildImage(tarStream, { t: imageName }, async (err, stream) => {
+                // Handle the completion of the Docker build process
                 if (err) {
-                    console.error('Docker build intiation failed:', err);
+                    Logger.error(`Docker build intiation failed: ${err.message}`);
                     return res.status(500).json({
                         code: "DOCKER_BUILD_FAILED",
                         message: "Docker build initiation failed. Please check the server logs for more details."
                     })
                 }
+                if (!stream) {
+                    Logger.error('Docker build stream is null. Please check the server logs for more details.');
+                    return res.status(500).json({
+                        code: "DOCKER_BUILD_FAILED",
+                        message: "Docker build stream is null. Please check the server logs for more details."
+                    })
+                }
 
-                docker.modem.followProgress(stream, (onFinished, ouput) => {
+                // 2. Follow the progress of the Docker build process
+                docker.modem.followProgress(stream, async (onFinished, ouput) => {
                     if (onFinished) {
-                        console.log('Docker image build failed')
+                        Logger.error('Docker image build failed');
                         return;
                     }
-                    console.log(`Successfully built the docker image`);
+
+                    try {
+                        // 3. Docker image built successfully, now find an available port and create a container
+                        Logger.info(`Docker image built successfully: ${imageName}`);
+                        const dockerPort = await findAvailablePort();
+
+                        // 4. Create docker container
+                        const container = await docker.createContainer({
+                            Image: imageName,
+                            ExposedPorts: { "3000/tcp": {} },
+                            HostConfig: {
+                                PortBindings: { "3000/tcp": [{ HostPort: dockerPort.toString() }] }
+                            }
+                        });
+
+                        // 5. Start the container and update the deployment status in the database
+                        await container.start();
+                        updateDeployment(subDomain, "deployed", container.id, dockerPort);
+
+                        return res.status(200).json({
+                            message: "file uploaded and extracted successfully, docker image built",
+                            subDomain: subDomain,
+                            imageName: imageName
+                        });
+                    } catch (containerErr) {
+                        Logger.error(`Container creation/start failed: ${containerErr}`);
+                        updateDeployment(subDomain, "failed", "", 0);
+                        return res.status(500).json({
+                            code: "CONTAINER_START_FAILED",
+                            message: "Failed to start the deployed container."
+                        });
+                    }
                 }, (event) => {
                     // Log the output of the Docker build process to the console
                     if (event.stream) {
@@ -99,15 +148,9 @@ export function deployRoutes(app: express.Express) {
                     }
                 })
 
-                console.log(chalk.green.italic(`Docker image built successfully: ${imageName}`));
-
-                return res.status(200).json({
-                    message: "file uploaded and extracted successfully, docker image built",
-                    subDomain: subDomain,
-                    imageName: imageName
-                })
             },)
         } else {
+            // If no package.json is found, simply return a success response after extraction
             return res.status(200).json({ message: "file uploaded and extracted successfully", subDomain: subDomain });
         }
 

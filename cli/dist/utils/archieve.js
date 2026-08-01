@@ -2,12 +2,11 @@
 import { ZipArchive } from "archiver";
 import path from "node:path";
 import fs from "node:fs";
-import chalk from "chalk";
 import { readConfigFile, runBuildCommandIfExists } from "./configHelper.js";
+import { Logger } from "./logger.js";
 export function createArchive() {
     return new Promise((resolve, reject) => {
         // Step 1: Create archive instance with zip format and maximum compression level
-        console.log(chalk.yellow.italic("Creating archive..."));
         const archive = new ZipArchive({
             zlib: {
                 level: 9 // Important: Set the compression level to maximum (9) for lowest size possible 
@@ -19,13 +18,13 @@ export function createArchive() {
         archive.pipe(output);
         // Important: Listen for the 'close' event to resolve the promise when the archive is finalized
         output.on("close", () => {
-            console.log(chalk.italic.green(`Archive created successfully`));
+            Logger.success(`Archive created successfully: ${outputDirPath}`);
             resolve(outputDirPath); // Resolve the promise when the archive is finalized
         });
         const buildDir = readConfigFile('publish') || ".";
         runBuildCommandIfExists(); // Run the build command if it exists in the configuration file
         if (!buildDir || !fs.existsSync(path.join(process.cwd(), buildDir))) {
-            console.log(chalk.red.italic(`Build directory '${buildDir}' does not exist. Please check your configuration.`));
+            Logger.error(`Build directory '${buildDir}' does not exist. Please check your configuration.`);
             reject(new Error(`Build directory '${buildDir}' does not exist.`));
             return;
         }
@@ -37,5 +36,6 @@ export function createArchive() {
         });
         // Step 4: Finalize the archive
         archive.finalize();
+        Logger.info(`Finalizing archive from directory: ${buildDir || process.cwd()}`);
     });
 }

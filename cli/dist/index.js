@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { Logger } from "./utils/logger.js";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
-import chalk from "chalk";
 import { initConfigFile, readConfigFile } from "./utils/configHelper.js";
 const program = new Command();
 // Define the "deploy" command
@@ -19,7 +19,7 @@ program
     .command("deploy")
     .description("Deploy your application to aerocloud")
     .action(async () => {
-    console.log("Deploying your application to aerocloud...");
+    Logger.info("Deploying your application to aerocloud...");
     // 1. get output dir of zip file
     const outputDirPath = await createArchive();
     // 2. Get output file buffer
@@ -37,8 +37,8 @@ program
         body: formData, // Native fetch automically sets the boundaries
     });
     const result = await response.json();
-    console.log(result);
-    console.log("Deployment completed successfully!");
+    Logger.info(`Deployment response: ${JSON.stringify(result)}`);
+    Logger.success("Deployment completed successfully!");
 });
 program
     .command("list")
@@ -50,7 +50,7 @@ program
     });
     // Check for response fail
     if (!response.ok) {
-        console.error("Failed to fetch deployments list.");
+        Logger.error("Failed to fetch deployments list.");
     }
     const deployments = await response.json();
     deployments.forEach((dep) => {
@@ -58,7 +58,7 @@ program
             dateStyle: 'short',
             timeStyle: 'short'
         }));
-        console.log(chalk.italic.bold(`- Subdomain: ${dep.subDomain} | Deployed: ${formattedDate}`));
+        Logger.info(`- Subdomain: ${dep.subDomain} | Deployed: ${formattedDate}`);
     });
 });
 // Parse the command-line arguments

@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { Logger } from './logger.js';
 
 /**
  * Automatically generates a production-ready Dockerfile in the target directory 
@@ -33,6 +34,9 @@ export function ensureDockerFile(targetDir: string): void {
         '# Copy the rest of the application files into the working directory',
         'COPY . .',
         '',
+        '# Compile TypeScript / build assets inside the container (if build script exists)',
+        'RUN npm run build --if-present',
+        '',
         '# Document that the container intends to listen on port 3000 at runtime',
         'EXPOSE 3000',
         '',
@@ -43,4 +47,6 @@ export function ensureDockerFile(targetDir: string): void {
     // Combine lines with standard system line breaks and write the file
     const content = dockerfileLines.join('\n');
     fs.writeFileSync(dockerFilePath, content, 'utf-8');
+
+    Logger.info(`Dockerfile has been generated at: ${dockerFilePath}`);
 }
