@@ -110,34 +110,37 @@ export function deployRoutes(app: express.Express) {
                         return;
                     }
 
-                    // 3. Docker image built successfully, now find an available port and create a container
-                    Logger.info(`Docker image built successfully: ${imageName}`);
-                    const dockerPort = await findAvailablePort(); // Find an available port for the Docker container
+                    try {
+                        // 3. Docker image built successfully, now find an available port and create a container
+                        Logger.info(`Docker image built successfully: ${imageName}`);
+                        const dockerPort = await findAvailablePort();
 
-                    // 4. Create docker container
-                    const container = await docker.createContainer({
-                        Image: imageName,
-                        ExposedPorts: {
-                            "3000/tcp": {}  // Expose port 3000 for the container
-                        },
-                        HostConfig: {
-                            PortBindings: {
-                                "3000/tcp": [{
-                                    HostPort: dockerPort.toString()  // Bind the container's port 3000 to the available host port
-                                }]
+                        // 4. Create docker container
+                        const container = await docker.createContainer({
+                            Image: imageName,
+                            ExposedPorts: { "3000/tcp": {} },
+                            HostConfig: {
+                                PortBindings: { "3000/tcp": [{ HostPort: dockerPort.toString() }] }
                             }
-                        }
-                    });
+                        });
 
-                    // 5. Start the container and update the deployment status in the database
-                    await container.start(); // Start the container
-                    updateDeployment(subDomain, "deployed", container.id, dockerPort); // Update the deployment status and container ID in the database
+                        // 5. Start the container and update the deployment status in the database
+                        await container.start();
+                        updateDeployment(subDomain, "deployed", container.id, dockerPort);
 
-                    return res.status(200).json({
-                        message: "file uploaded and extracted successfully, docker image built",
-                        subDomain: subDomain,
-                        imageName: imageName
-                    })
+                        return res.status(200).json({
+                            message: "file uploaded and extracted successfully, docker image built",
+                            subDomain: subDomain,
+                            imageName: imageName
+                        });
+                    } catch (containerErr) {
+                        Logger.error(`Container creation/start failed: ${containerErr}`);
+                        updateDeployment(subDomain, "failed", "", 0);
+                        return res.status(500).json({
+                            code: "CONTAINER_START_FAILED",
+                            message: "Failed to start the deployed container."
+                        });
+                    }
                 }, (event) => {
                     // Log the output of the Docker build process to the console
                     if (event.stream) {
