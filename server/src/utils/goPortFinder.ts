@@ -11,8 +11,8 @@ export async function findAvailablePort(startPort: number = 1024, endPort: numbe
     
     // 2. Check for binary existence
     if (!fs.existsSync(binaryPath)) {
-        process.exit(1);
         Logger.error(`Error: goportscan binary not found at ${binaryPath}. Please ensure the binary is present in the 'bin' directory.`);
+        process.exit(1);
     }
 
     // 3. Execute the binary
