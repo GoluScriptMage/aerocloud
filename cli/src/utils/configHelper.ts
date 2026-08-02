@@ -20,6 +20,7 @@ export function initConfigFile() {
 
     // Check if file exists
     const targetFilePath = path.join(process.cwd(), fileName);
+    console.log(chalk.blue(`Initializing aerocloud configuration file: ${targetFilePath}`));
     if (!fs.existsSync(targetFilePath)) {
         fs.writeFileSync(targetFilePath, JSON.stringify(data, null, 4), 'utf-8');
     }
