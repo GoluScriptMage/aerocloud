@@ -26,7 +26,10 @@ program
     const outputFileBuffer = fs.readFileSync(outputDirPath);
     // 3. Set the Blob
     const fileBlob = new Blob([outputFileBuffer], { type: "application/zip" });
-    const customFileName = readConfigFile('name'); // You can customize the file name if needed
+    let customFileName = readConfigFile('name'); // You can customize the file name if needed
+    if (!customFileName || customFileName.trim() === '') {
+        customFileName = `app-${Math.random().toString(36).substring(2, 8)}`;
+    }
     // 4. Create Formdata & append fileBlob
     const formData = new FormData();
     formData.append('file', fileBlob, 'test.zip');
