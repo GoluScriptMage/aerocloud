@@ -44,4 +44,11 @@ export function deleteDeployment(subdomain: string) {
     statement.run(subdomain)
 }
 
+// Return used ports
+export function getUsedPorts() {
+    const statement = db.prepare("SELECT port FROM deployments WHERE status IN ('deployed', 'deploying') ORDER BY port ASC");
+    return statement.all();
+}
+
+
 export default db;

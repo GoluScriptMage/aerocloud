@@ -114,6 +114,7 @@ export function deployRoutes(app: express.Express) {
                         // 3. Docker image built successfully, now find an available port and create a container
                         Logger.info(`Docker image built successfully: ${imageName}`);
                         const dockerPort = await findAvailablePort();
+                    Logger.info(`Available port found for Docker container: ${dockerPort}`);
 
                         // 4. Create docker container
                         const container = await docker.createContainer({
