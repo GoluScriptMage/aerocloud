@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package.json and package-lock.json first to leverage Docker layer caching
 COPY package*json ./
 
-# Install exact dependencies matching the lockfile, bypassing user-install scripts for speed
-RUN npm ci
+# Install dependencies matching lockfile if present, or fallback to npm install
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Copy the rest of the application files into the working directory
 COPY . .
