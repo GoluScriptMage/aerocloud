@@ -12,3 +12,7 @@ Day - 6 Today was really hard at end took lot of time to fix and found the bug b
 Day - 7 I guess i did some refractoring and did some testing for the git alias cmd git ship (it do merge current with main and delete divergion branch)
 Day 8 - Implemented the docker image build for backend and nextjs project & also created auto docker file insertion today is really fun day after seeing those success 
 Day 9 - Implemted http-proxy to get the route of deployed container
+
+## Level - 3 (Real time observaility)
+
+Day 10 - implemented real time build logs logging in client terminal using node readline & client.event 
