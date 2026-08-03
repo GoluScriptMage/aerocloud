@@ -4,6 +4,8 @@ import { Logger } from "./utils/logger.js";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
 import { initConfigFile, readConfigFile } from "./utils/configHelper.js";
+import readline from "node:readline";
+import { Readable } from "node:stream";
 const program = new Command();
 // Define the "deploy" command
 program
@@ -26,7 +28,7 @@ program
     const outputFileBuffer = fs.readFileSync(outputDirPath);
     // 3. Set the Blob
     const fileBlob = new Blob([outputFileBuffer], { type: "application/zip" });
-    let customFileName = readConfigFile('name'); // You can customize the file name if needed
+    let customFileName = readConfigFile('name');
     if (!customFileName || customFileName.trim() === '') {
         customFileName = `app-${Math.random().toString(36).substring(2, 8)}`;
     }
@@ -37,23 +39,48 @@ program
     // 5. Send the file using fetch post
     const response = await fetch("http://localhost:3000/deploy", {
         method: 'POST',
-        body: formData, // Native fetch automically sets the boundaries
+        body: formData,
     });
-    const result = await response.json();
-    Logger.info(`Deployment response: ${JSON.stringify(result)}`);
-    Logger.success("Deployment completed successfully!");
+    if (!response.body) {
+        Logger.error("No response stream received from server.");
+        return;
+    }
+    // Convert Web ReadableStream (from native fetch) to Node.js Readable stream
+    const nodeStream = Readable.fromWeb(response.body);
+    const rl = readline.createInterface({ input: nodeStream });
+    for await (const line of rl) {
+        if (!line.trim())
+            continue;
+        try {
+            const parsedLine = JSON.parse(line);
+            if (parsedLine.type === "docker_build_output") {
+                process.stdout.write(parsedLine.message);
+            }
+            else if (parsedLine.type === "result") {
+                if (parsedLine.status === "success") {
+                    Logger.success(`Deployment successful! Subdomain: ${parsedLine.subDomain}, Image: ${parsedLine.imageName}`);
+                    Logger.info(`🌐 Live URL: http://${parsedLine.subDomain}.localhost:8080`);
+                }
+                else {
+                    Logger.error(`Deployment failed: ${parsedLine.message}`);
+                }
+            }
+        }
+        catch (err) {
+            // Ignore parse errors on malformed lines
+        }
+    }
 });
 program
     .command("list")
     .description("List all deployments")
     .action(async () => {
-    // Req on localhost:3000/list
     const response = await fetch("http://localhost:3000/list", {
         method: "GET"
     });
-    // Check for response fail
     if (!response.ok) {
         Logger.error("Failed to fetch deployments list.");
+        return;
     }
     const deployments = await response.json();
     deployments.forEach((dep) => {
