@@ -121,6 +121,29 @@ program
         })
     });
 
+// Stop the deployment by subdomain
+program
+    .command("stop <subdomain>")
+    .description("Stop a deployment by subdomain")
+    .action(async (subdomain: string) => {
+        Logger.info(`Stopping deployment for subdomain: ${subdomain}...`);
+
+        const response = await fetch(`http://localhost:3000/stop${subdomain}`, {
+            method: "GET"
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            Logger.error(`Failed to stop deployment: ${errorData.error}`);
+            return;
+        }
+
+        const data = await response.json();
+        Logger.success(data.message);
+    })
+
+
+
 // program
 //     .command("list")
 //     .description("List all deployments")
