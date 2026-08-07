@@ -16,7 +16,6 @@ Day 9 - Implemted http-proxy to get the route of deployed container
 ## Level - 3 (Real time observaility)
 
 Day 10 - implemented real time build logs logging in client terminal using node readline & client.event 
-Day 11 - Implemented list route to show details of deployments & 
-also stop and destory routes
+Day 11 - Implemented the list route to show deployment details, plus stop and destroy routes.
 
 "New for tomorrow"
