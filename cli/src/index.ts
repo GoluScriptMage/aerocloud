@@ -142,30 +142,27 @@ program
         Logger.success(data.message);
     })
 
+// Destroy the deployment by subdomain
+program
+    .command("destroy <subdomain>")
+    .description("Destroy a deployment by subdomain")
+    .action(async (subdomain: string) => {
+        Logger.info(`Destroying deployment for subdomain: ${subdomain}...`);
 
+        const response = await fetch(`http://localhost:3000/destroy${subdomain}`, {
+            method: "GET"
+        });
 
-// program
-//     .command("list")
-//     .description("List all deployments")
-//     .action(async () => {
-//         const response = await fetch("http://localhost:3000/list", {
-//             method: "GET"
-//         });
+        if (!response.ok) {
+            const errorData = await response.json();
+            Logger.error(`Failed to destroy deployment: ${errorData.error}`);
+            return;
+        }
 
-//         if (!response.ok) {
-//             Logger.error("Failed to fetch deployments list.");
-//             return;
-//         }
+        const data = await response.json();
+        Logger.success(data.message);
+    })
 
-//         const deployments = await response.json();
-//         deployments.forEach((dep: any) => {
-//             const formattedDate = new Date(dep.deployedAt.toLocaleString("en-US", {
-//                 dateStyle: 'short',
-//                 timeStyle: 'short'
-//             }));
-//             Logger.info(`- Subdomain: ${dep.subDomain} | Deployed: ${formattedDate}`);
-//         });
-//     });
 
 // Parse the command-line arguments
 program.parse(process.argv);

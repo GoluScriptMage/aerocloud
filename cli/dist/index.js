@@ -122,25 +122,22 @@ program
     const data = await response.json();
     Logger.success(data.message);
 });
-// program
-//     .command("list")
-//     .description("List all deployments")
-//     .action(async () => {
-//         const response = await fetch("http://localhost:3000/list", {
-//             method: "GET"
-//         });
-//         if (!response.ok) {
-//             Logger.error("Failed to fetch deployments list.");
-//             return;
-//         }
-//         const deployments = await response.json();
-//         deployments.forEach((dep: any) => {
-//             const formattedDate = new Date(dep.deployedAt.toLocaleString("en-US", {
-//                 dateStyle: 'short',
-//                 timeStyle: 'short'
-//             }));
-//             Logger.info(`- Subdomain: ${dep.subDomain} | Deployed: ${formattedDate}`);
-//         });
-//     });
+// Destroy the deployment by subdomain
+program
+    .command("destroy <subdomain>")
+    .description("Destroy a deployment by subdomain")
+    .action(async (subdomain) => {
+    Logger.info(`Destroying deployment for subdomain: ${subdomain}...`);
+    const response = await fetch(`http://localhost:3000/destroy${subdomain}`, {
+        method: "GET"
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        Logger.error(`Failed to destroy deployment: ${errorData.error}`);
+        return;
+    }
+    const data = await response.json();
+    Logger.success(data.message);
+});
 // Parse the command-line arguments
 program.parse(process.argv);
