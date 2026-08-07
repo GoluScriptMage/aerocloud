@@ -129,8 +129,8 @@ sequenceDiagram
     Server->>Server: Generate Dockerfile (if missing)
     Server->>DB: INSERT deployment (status: deploying)
     Server->>Docker: Build image from tar stream
-    Docker-->>Server: Build progress (SSE)
-    Server-->>CLI: Stream build logs
+    Docker-->>Server: Build output stream
+    Server-->>CLI: Stream build logs (SSE)
     Docker-->>Server: Image built
     Server->>Docker: Create & start container
     Server->>DB: UPDATE (status: deployed, containerId, port)
