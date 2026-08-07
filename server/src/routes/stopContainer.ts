@@ -31,6 +31,7 @@ export function stopContainer(app: express.Express) {
             // 4. Update the deployment status in the database
             updateDeployment(subdomain, "stopped", containerId);
 
+            Logger.info(`Container for subdomain ${subdomain} stopped successfully.`);
             return res.status(200).json({ message: "Container stopped successfully." });
         } catch (error) {
             Logger.error(`Error stopping container for subdomain ${subdomain}: ${(error as Error).message}`);
@@ -63,11 +64,16 @@ export function destroyContainer(app: express.Express) {
 
             // 3. Stop and remove container from docker
             const container = docker.getContainer(containerId);
-            await container.stop();
+            const containerInfo = await container.inspect();
+            const liveStatus = containerInfo.State.Status;
+            if (liveStatus === "running") {
+                await container.stop();
+            }
             await container.remove();
 
             // 4. Update the deployment status in the database
             updateDeployment(subdomain, "destroyed", containerId);
+            Logger.info(`Container for subdomain ${subdomain} destroyed successfully.`);
 
             return res.status(200).json({ message: "Container destroyed successfully." });
         } catch (error) {

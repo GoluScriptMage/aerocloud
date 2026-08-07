@@ -9,6 +9,7 @@ import db from "./config/db.js";
 import { deployRoutes } from "./routes/deploy.js";
 import { Logger } from "./utils/logger.js";
 import { listDeployments } from "./routes/listDeployments.js";
+import { destroyContainer, stopContainer } from "./routes/stopContainer.js";
 
 const app = express();
 
@@ -17,6 +18,12 @@ deployRoutes(app);
 
 // List deployment route
 listDeployments(app);
+
+// Stop container route
+stopContainer(app);
+
+// Destroy container route
+destroyContainer(app);
 
 app.listen(3000, () => {
     Logger.info("Server running on port 3000");
