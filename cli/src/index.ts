@@ -23,6 +23,7 @@ program
         initConfigFile();
     });
 
+// Define the "deploy" command
 program
     .command("deploy")
     .description("Deploy your application to aerocloud")
@@ -59,7 +60,7 @@ program
         }
 
         // Convert Web ReadableStream (from native fetch) to Node.js Readable stream
-        const nodeStream = Readable.fromWeb(response.body as any);  
+        const nodeStream = Readable.fromWeb(response.body as any);
         const rl = readline.createInterface({ input: nodeStream });
 
         for await (const line of rl) {
@@ -96,14 +97,48 @@ program
         }
 
         const deployments = await response.json();
+        if (deployments.length === 0) {
+            Logger.info("No deployments found.");
+            return;
+        };
+
         deployments.forEach((dep: any) => {
-            const formattedDate = new Date(dep.deployedAt.toLocaleString("en-US", {
-                dateStyle: 'short',
-                timeStyle: 'short'
-            }));
-            Logger.info(`- Subdomain: ${dep.subDomain} | Deployed: ${formattedDate}`);
-        });
+            // Logs in JSON format for better readability and parsing
+            Logger.info("Deployments:\n" + JSON.stringify({
+                subdomain: dep.subdomain,
+                port: dep.port,
+                status: dep.status,
+                createdAt: dep.createdAt.toLocaleString("en-IN", {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                }),
+                containerStatus: dep.containerStatus || "Unknown"
+            }, null, 2))
+        })
     });
+
+// program
+//     .command("list")
+//     .description("List all deployments")
+//     .action(async () => {
+//         const response = await fetch("http://localhost:3000/list", {
+//             method: "GET"
+//         });
+
+//         if (!response.ok) {
+//             Logger.error("Failed to fetch deployments list.");
+//             return;
+//         }
+
+//         const deployments = await response.json();
+//         deployments.forEach((dep: any) => {
+//             const formattedDate = new Date(dep.deployedAt.toLocaleString("en-US", {
+//                 dateStyle: 'short',
+//                 timeStyle: 'short'
+//             }));
+//             Logger.info(`- Subdomain: ${dep.subDomain} | Deployed: ${formattedDate}`);
+//         });
+//     });
 
 // Parse the command-line arguments
 program.parse(process.argv);

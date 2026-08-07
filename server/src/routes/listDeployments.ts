@@ -3,6 +3,7 @@ import express from "express";
 import { getAllDeployments } from "../config/db.js";
 import docker from "../config/docker.js";
 import { info } from "console";
+import { Logger } from "../utils/logger.js";
 
 type DeploymentWithContainerInfo = {
     subdomain: string;
@@ -10,14 +11,13 @@ type DeploymentWithContainerInfo = {
     status: string;
     createdAt: string;
     containerId: string | null;
-    containerStatus: string; // e.g., "running", "exited", "paused", etc.
+    containerStatus?: string; // e.g., "running", "exited", "paused", etc.
 }
-
 // Route to get all deployments
 export function listDeployments(app: express.Express) {
 
-    app.get("/list", async (req, res) => {
 
+    app.get("/list", async (req, res) => {
         try {
             // 1. Get all deployments from the database
             const deployments = getAllDeployments() as DeploymentWithContainerInfo[];
@@ -67,6 +67,7 @@ export function listDeployments(app: express.Express) {
             res.status(200).json(deploymentsWithContainerInfo);
 
         } catch (error) {
+            Logger.error("Error fetching deployments: " + (error as Error).message);
             res.status(500).json({ error: "Internal server error" });
         }
 
