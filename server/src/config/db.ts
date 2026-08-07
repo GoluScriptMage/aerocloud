@@ -32,9 +32,9 @@ export function updateDeployment(subdomain: string, status: string, containerId:
     statement.run(containerId, status, port, subdomain);
 }
 
-// GET All deployments
+// GET All deployments by desc order
 export function getAllDeployments() {
-    const statement = db.prepare('SELECT * FROM deployments');
+    const statement = db.prepare('SELECT * FROM deployments ORDER BY createdAt DESC');
     return statement.all();
 }
 

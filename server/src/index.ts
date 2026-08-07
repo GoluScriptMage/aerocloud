@@ -8,26 +8,15 @@ import chalk from "chalk";
 import db from "./config/db.js";
 import { deployRoutes } from "./routes/deploy.js";
 import { Logger } from "./utils/logger.js";
+import { listDeployments } from "./routes/listDeployments.js";
 
 const app = express();
 
+// Deploy routes 
 deployRoutes(app);
 
-// 2. Define a route to handle file uploads
-app.get("/list", (req, res) => {
-
-    const dirPath = path.join(process.cwd(), 'deployments');
-
-    // 1. Read the folder & get only folders { name, deployedAt }
-    const dirs = fs.readdirSync(dirPath, { withFileTypes: true })
-        .filter(d => d.isDirectory())
-        .map((d) => ({
-            subDomain: d.name,
-            deployedAt: fs.statSync(path.join(dirPath, d.name)).birthtime
-        }))
-
-    res.status(200).json(dirs)
-})
+// List deployment route
+listDeployments(app);
 
 app.listen(3000, () => {
     Logger.info("Server running on port 3000");
