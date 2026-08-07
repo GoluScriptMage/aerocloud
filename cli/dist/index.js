@@ -76,6 +76,7 @@ program
     .command("list")
     .description("List all deployments")
     .action(async () => {
+    Logger.info("Fetching deployments list from aerocloud...");
     const response = await fetch("http://localhost:3000/list", {
         method: "GET"
     });
@@ -99,7 +100,8 @@ program
                 dateStyle: 'short',
                 timeStyle: 'short'
             }),
-            containerStatus: dep.containerStatus || "Unknown"
+            containerStatus: dep.containerStatus || "Unknown",
+            memoryUsage: dep.memoryUsage || "N/A"
         }, null, 2));
     });
 });

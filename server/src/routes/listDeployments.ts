@@ -12,6 +12,7 @@ type DeploymentWithContainerInfo = {
     createdAt: string;
     containerId: string | null;
     containerStatus?: string; // e.g., "running", "exited", "paused", etc.
+    memoryUsage?: string; // e.g., "50MB", "200MB", etc.
 }
 // Route to get all deployments
 export function listDeployments(app: express.Express) {
@@ -31,7 +32,8 @@ export function listDeployments(app: express.Express) {
                         port: dep.port,
                         status: dep.status,
                         createdAt: dep.createdAt,
-                        containerStatus: "Down"
+                        containerStatus: "Down",
+                        memoryUsage: "N/A"
                     }
 
                     // 2c. If containerId doesn't exists, get return base info
@@ -46,10 +48,27 @@ export function listDeployments(app: express.Express) {
                         const containerInfo = await container.inspect();
                         const liveStatus = containerInfo.State.Status; // return running, exited, etc
 
+                        // Get memory and CPU usage
+
+                        // 3a. If container is running, get memory usage
+                        let memoryUsage: string = '';
+                        if (liveStatus === "running") {
+                            try {
+                                const stats = await container.stats({ stream: false })
+                                const usage = stats.memory_stats.usage;
+                                const limit = stats.memory_stats.limit;
+                                memoryUsage = (usage / (1024 * 1024)).toFixed(2) + 'MB'; // Memory usage in percentage
+                            } catch (error) {
+                                Logger.error("Error fetching memory usage: " + (error as Error).message);
+                            }
+                        }
+
+
                         // 4. Return the deployment info with container status
                         return {
                             ...baseInfo,
-                            containerStatus: liveStatus
+                            containerStatus: liveStatus,
+                            memoryUsage: memoryUsage || "N/A"
                         }
 
                     } catch (error) {
