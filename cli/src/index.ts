@@ -23,6 +23,7 @@ program
         initConfigFile();
     });
 
+// Define the "deploy" command
 program
     .command("deploy")
     .description("Deploy your application to aerocloud")
@@ -59,7 +60,7 @@ program
         }
 
         // Convert Web ReadableStream (from native fetch) to Node.js Readable stream
-        const nodeStream = Readable.fromWeb(response.body as any);  
+        const nodeStream = Readable.fromWeb(response.body as any);
         const rl = readline.createInterface({ input: nodeStream });
 
         for await (const line of rl) {
@@ -86,6 +87,8 @@ program
     .command("list")
     .description("List all deployments")
     .action(async () => {
+
+        Logger.info("Fetching deployments list from aerocloud...");
         const response = await fetch("http://localhost:3000/list", {
             method: "GET"
         });
@@ -96,14 +99,70 @@ program
         }
 
         const deployments = await response.json();
+        if (deployments.length === 0) {
+            Logger.info("No deployments found.");
+            return;
+        };
+
         deployments.forEach((dep: any) => {
-            const formattedDate = new Date(dep.deployedAt.toLocaleString("en-US", {
-                dateStyle: 'short',
-                timeStyle: 'short'
-            }));
-            Logger.info(`- Subdomain: ${dep.subDomain} | Deployed: ${formattedDate}`);
-        });
+            // Logs in JSON format for better readability and parsing
+            Logger.info("Deployments:\n" + JSON.stringify({
+                subdomain: dep.subdomain,
+                port: dep.port,
+                status: dep.status,
+                createdAt: dep.createdAt.toLocaleString("en-IN", {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                }),
+                containerStatus: dep.containerStatus || "Unknown",
+                memoryUsage: dep.memoryUsage || "N/A"
+
+            }, null, 2))
+        })
     });
+
+// Stop the deployment by subdomain
+program
+    .command("stop <subdomain>")
+    .description("Stop a deployment by subdomain")
+    .action(async (subdomain: string) => {
+        Logger.info(`Stopping deployment for subdomain: ${subdomain}...`);
+
+        const response = await fetch(`http://localhost:3000/stop${subdomain}`, {
+            method: "GET"
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            Logger.error(`Failed to stop deployment: ${errorData.error}`);
+            return;
+        }
+
+        const data = await response.json();
+        Logger.success(data.message);
+    })
+
+// Destroy the deployment by subdomain
+program
+    .command("destroy <subdomain>")
+    .description("Destroy a deployment by subdomain")
+    .action(async (subdomain: string) => {
+        Logger.info(`Destroying deployment for subdomain: ${subdomain}...`);
+
+        const response = await fetch(`http://localhost:3000/destroy${subdomain}`, {
+            method: "GET"
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            Logger.error(`Failed to destroy deployment: ${errorData.error}`);
+            return;
+        }
+
+        const data = await response.json();
+        Logger.success(data.message);
+    })
+
 
 // Parse the command-line arguments
 program.parse(process.argv);
