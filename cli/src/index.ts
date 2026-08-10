@@ -163,6 +163,27 @@ program
         Logger.success(data.message);
     })
 
+program
+    .command("logs <subdomain>")
+    .description("Fetch logs for a deployment by subdomain")
+    .action(async (subdomain: string) => {
+        Logger.info(`Fetching logs for deployment with subdomain: ${subdomain}...`);
+
+        const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs`, {
+            method: "GET"
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            Logger.error(`Failed to fetch logs: ${errorData.message}`);
+            return;
+        }
+
+        const logs = await response.json();
+        Logger.info(`Logs for deployment ${subdomain}:`);
+        logs.forEach((log: string) => Logger.info(log));
+
+    })
 
 // Parse the command-line arguments
 program.parse(process.argv);
