@@ -153,8 +153,9 @@ program
         return;
     }
     const logs = await response.json();
-    Logger.info(`Logs for deployment ${subdomain}:`);
-    logs.forEach((log) => Logger.info(log));
+    const logArray = logs.logs.split('\n').filter((line) => line.trim() !== '');
+    Logger.log(`Logs for deployment ${subdomain}:`);
+    logArray.forEach((log) => Logger.log(`${log}`));
 });
 // Parse the command-line arguments
 program.parse(process.argv);

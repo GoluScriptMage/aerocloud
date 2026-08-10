@@ -14,12 +14,15 @@ import { Logger } from "../utils/logger.js";
 
 export function deployRoutes(app: express.Express) {
 
+    Logger.info("Setting up deployment routes...");
+    
     // 1. Configure multer storage
     const storage = multer.memoryStorage(); // Store files in memory for processing
     const upload = multer({ storage: storage });
 
     // 2. Define a route to handle file uploads
     app.post("/deploy", upload.single("file"), (req, res) => {
+        Logger.info("Received a deployment request");
         Logger.info("Received a deployment request");
 
         /**

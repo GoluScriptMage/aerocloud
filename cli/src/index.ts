@@ -180,8 +180,9 @@ program
         }
 
         const logs = await response.json();
-        Logger.info(`Logs for deployment ${subdomain}:`);
-        logs.forEach((log: string) => Logger.info(log));
+        const logArray = logs.logs.split('\n').filter((line: string) => line.trim() !== '');
+        Logger.log(`Logs for deployment ${subdomain}:`);
+        logArray.forEach((log: string) => Logger.log(`${log}`));
 
     })
 
