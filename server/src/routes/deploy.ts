@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import multer from "multer";
 import crypto from "crypto";
 import path from "path";
@@ -14,15 +15,12 @@ import { Logger } from "../utils/logger.js";
 
 export function deployRoutes(app: express.Express) {
 
-    Logger.info("Setting up deployment routes...");
-    
     // 1. Configure multer storage
     const storage = multer.memoryStorage(); // Store files in memory for processing
     const upload = multer({ storage: storage });
 
     // 2. Define a route to handle file uploads
     app.post("/deploy", upload.single("file"), (req, res) => {
-        Logger.info("Received a deployment request");
         Logger.info("Received a deployment request");
 
         /**
@@ -57,8 +55,28 @@ export function deployRoutes(app: express.Express) {
         const zip = new AdmZip(fileBuffer);
         zip.extractAllTo(targetDir, true);
 
-        // 4. Save deployment in db with status "deploying"
-        saveDeployment(subDomain, 0, "deploying");
+        // 3.1 Check for .env file 
+        const envFilePath = path.join(targetDir, '.env');
+        let envFileBuffer: Buffer | null = null;
+
+        // 3.2 Read the .env file if it exists
+        if (fs.existsSync(envFilePath)) {
+            Logger.info(`.env file found at ${envFilePath}`);
+            envFileBuffer = fs.readFileSync(envFilePath);
+        } else {
+            Logger.warn(`No .env file found in the deployment package.`);
+        }
+
+        // 3.3 Parse the .env file if it exists
+        const parsedEnv = envFileBuffer && JSON.stringify(dotenv.parse(envFileBuffer));
+
+        // 4. Save deployment in db with status "deploying" 
+        // Save the env vars 
+        if (parsedEnv) {
+            saveDeployment(subDomain, 0, "deploying", parsedEnv);
+        } else {
+            saveDeployment(subDomain, 0, "deploying");
+        }
 
         if (fs.existsSync(path.join(targetDir, 'package.json'))) {
 
@@ -91,7 +109,9 @@ export function deployRoutes(app: express.Express) {
                     return;
                 }
 
+                // Follow the progress of the Docker build
                 docker.modem.followProgress(stream, async (onFinished, output) => {
+                    // Check if the build process finished with an error
                     if (onFinished) {
                         Logger.error('Docker image build failed');
                         res.status(500).write(JSON.stringify({
@@ -107,8 +127,16 @@ export function deployRoutes(app: express.Express) {
                         Logger.info(`Docker image built successfully: ${imageName}`);
                         const dockerPort = await findAvailablePort();
 
+                        // 5.1 Get the env vars from the database for this deployment
+                        const envVars = await getDeployment(subDomain) as { envVars?: string } | undefined;
+
+                        // 5.2 Modify the env vars to be in the format expected by Docker
+                        const modifiedEnvVars = envVars ? Object.entries(JSON.parse(envVars.envVars || "{}")).map(([key, value]) => `${key}=${value}`).join('\n') : undefined;
+
                         const container = await docker.createContainer({
                             Image: imageName,
+                            name: subDomain,
+                            Env: modifiedEnvVars ? modifiedEnvVars.split('\n') : undefined, // insersts the env vars into the container
                             ExposedPorts: { "3000/tcp": {} },
                             HostConfig: {
                                 PortBindings: { "3000/tcp": [{ HostPort: dockerPort.toString() }] }
