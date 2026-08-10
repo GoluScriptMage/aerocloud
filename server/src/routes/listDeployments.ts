@@ -16,8 +16,6 @@ type DeploymentWithContainerInfo = {
 }
 // Route to get all deployments
 export function listDeployments(app: express.Express) {
-
-
     app.get("/list", async (req, res) => {
         try {
             // 1. Get all deployments from the database
@@ -91,5 +89,4 @@ export function listDeployments(app: express.Express) {
         }
 
     })
-
 }
