@@ -17,5 +17,7 @@ Day 9 - Implemted http-proxy to get the route of deployed container
 
 Day 10 - implemented real time build logs logging in client terminal using node readline & client.event 
 Day 11 - Implemented the list route to show deployment details, plus stop and destroy routes.
+Day 12 - Implemented logs for crashed or running contianer & added env keys injecting while building contianer
+
 
 "New for tomorrow"
