@@ -43,6 +43,14 @@ program
             customFileName = `app-${Math.random().toString(36).substring(2, 8)}`;
         }
 
+        // 3.1 Check for env file and append to formdata
+        if (!fs.existsSync(".env")) {
+            Logger.warn("No .env file found. Proceeding without it.");
+        }
+
+        // 3.2 Create the env file blob if it exists
+        const envBlob = fs.existsSync(".env") ? new Blob([fs.readFileSync(".env")], { type: "text/plain" }) : null;
+
         // 4. Create Formdata & append fileBlob
         const formData = new FormData();
         formData.append('file', fileBlob, 'test.zip');
@@ -63,10 +71,13 @@ program
         const nodeStream = Readable.fromWeb(response.body as any);
         const rl = readline.createInterface({ input: nodeStream });
 
+        // Read the response line by line
         for await (const line of rl) {
             if (!line.trim()) continue;
             try {
                 const parsedLine = JSON.parse(line);
+
+                // Handle different types of messages from the server
                 if (parsedLine.type === "docker_build_output") {
                     process.stdout.write(parsedLine.message);
                 } else if (parsedLine.type === "result") {
@@ -163,6 +174,52 @@ program
         Logger.success(data.message);
     })
 
+
+// Fetch logs for a deployment by subdomain
+// follow the logs in real-time if the container is running
+program
+    .command("logs <subdomain>")
+    .option("-f, --follow", "Follow logs in real-time if the container is running")
+    .description("Fetch logs for a deployment by subdomain")
+    .action(async (subdomain: string, options) => {
+
+        // Check if the --follow option is set
+        if (!options.follow) {
+            Logger.info("Fetching logs in real-time for subdomain: " + subdomain);
+            const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs`, {
+                method: "GET"
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                Logger.error(`Failed to fetch logs: ${errorData.message}`);
+                return;
+            }
+
+            // Stream the logs in real-time
+            const logs = await response.json();
+            const logArray = logs.logs.split('\n').filter((line: string) => line.trim() !== '');
+            Logger.log(`Logs for deployment ${subdomain}:`);
+            logArray.forEach((log: string) => Logger.log(`${log}`));
+            return;
+        }
+
+        // If the --follow option is not set, fetch the last 100 lines of logs
+        const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs?follow=true`, {
+            method: "GET"
+        })
+
+        const nodeStream = Readable.fromWeb(response.body as any);
+        const rl = readline.createInterface({ input: nodeStream });
+
+        // Read the response line by line
+        Logger.info(`Streaming logs for deployment ${subdomain} (Press Ctrl+C to stop):`);
+        for await (const line of rl) {
+            if (!line.trim()) continue;
+            Logger.log(line);
+        }
+
+    })
 
 // Parse the command-line arguments
 program.parse(process.argv);

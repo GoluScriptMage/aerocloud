@@ -31,4 +31,13 @@ export class Logger {
     static warn(message: any): void {
         console.warn(`${chalk.gray(this.timestamp)} ${chalk.yellowBright.bold("[WARN]")} ${this.formatMessage(message)}`);
     }
+
+    static debug(message: any): void {
+        console.log(`${chalk.gray(this.timestamp)} ${chalk.magentaBright.bold("[DEBUG]")} ${this.formatMessage(message)}`);
+    }
+
+    static log(message: any): void {
+        console.log(`${chalk.dim(this.formatMessage(message))}`);
+        // console.log(`${chalk.gray(this.timestamp)} ${chalk.whiteBright.bold("[LOG]")} ${this.formatMessage(message)}`);
+    }
 }

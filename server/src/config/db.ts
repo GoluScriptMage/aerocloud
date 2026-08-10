@@ -10,14 +10,15 @@ db.exec(`
         containerId TEXT NULL,
         port INTEGER NULL,
         status TEXT,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        envVars TEXT NULL
     )
 `)
 
 // Function to save deployment information to the database
-export function saveDeployment(subdomain: string, port: number, status: string) {
-    const statement = db.prepare('INSERT INTO deployments (subdomain, port, status) VALUES (?, ?, ?)');
-    statement.run(subdomain, port, status);
+export function saveDeployment(subdomain: string, port: number, status: string, envVars?: string) {
+    const statement = db.prepare('INSERT INTO deployments (subdomain, port, status, envVars) VALUES (?, ?, ?, ?)');
+    statement.run(subdomain, port, status, envVars);
 }
 
 // Function to retrieve one deployment information from the database
@@ -27,9 +28,9 @@ export function getDeployment(subdomain: string) {
 }
 
 // Update deployment status/container
-export function updateDeployment(subdomain: string, status: string, containerId: string, port?: number) {
-    const statement = db.prepare('UPDATE deployments SET containerId = ?, status = ?, port = ? WHERE subdomain = ?')
-    statement.run(containerId, status, port, subdomain);
+export function updateDeployment(subdomain: string, status: string, containerId: string, port?: number, envVars?: string) {
+    const statement = db.prepare('UPDATE deployments SET containerId = ?, status = ?, port = ?, envVars = ? WHERE subdomain = ?')
+    statement.run(containerId, status, port, envVars, subdomain);
 }
 
 // GET All deployments by desc order

@@ -2,5 +2,5 @@
  "Add some logic to exit after a container is build successfully"
 
 
-
+ "Delte the deployment for the failed contianer buil"
  
