@@ -3,6 +3,7 @@ import http from "node:http";
 const port = process.env.PORT || 3000;
 
 const server = http.createServer((req, res) => {
+
     res.writeHead(200, {
         "Content-Type": "text/html; charset=utf-8",
     });
@@ -253,5 +254,11 @@ footer{
 });
 
 server.listen(port, () => {
+    console.log(process.env.He)
+    
+    setInterval(() => {
+        console.log("Logging real time test - " + new Date().
+            toLocaleTimeString());
+    }, 1000);
     console.log(`🚀 AeroCloud server running on http://localhost:${port}`);
 });
