@@ -11,6 +11,7 @@ import { Logger } from "./utils/logger.js";
 import { listDeployments } from "./routes/listDeployments.js";
 import { destroyContainer, stopContainer } from "./routes/stopContainer.js";
 import { getCrashLogs } from "./routes/logs.js";
+import { authRoutes } from "./routes/auth.js";
 
 const app = express();
 
@@ -28,6 +29,9 @@ destroyContainer(app);
 
 // Logs the crashed or deployed container logs 
 getCrashLogs(app);
+
+// Auth routes
+authRoutes(app);
 
 app.listen(3000, () => {
     Logger.info("Server running on port 3000");
