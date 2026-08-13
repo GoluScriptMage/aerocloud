@@ -12,7 +12,9 @@ import { listDeployments } from "./routes/listDeployments.js";
 import { destroyContainer, stopContainer } from "./routes/stopContainer.js";
 import { getCrashLogs } from "./routes/logs.js";
 import { authRoutes } from "./routes/auth.js";
+import dotenv from "dotenv";
 
+dotenv.config(); 
 const app = express();
 
 // Deploy routes 

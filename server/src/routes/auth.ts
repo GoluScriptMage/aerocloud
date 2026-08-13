@@ -6,7 +6,7 @@ export function authRoutes(app: express.Express) {
     app.use('/auth/github', async (req, res) => {
 
         // Step 1: Redirect user to GitHub for authentication
-        const cliPort = req.query.cliPort as string; // Get the cliPort from the query parameters
+        const cliPort = req.query.port as string || '3001'; // Get the cliPort from the query parameters
 
         const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${process.env.GITHUB_REDIRECT_URI}&scope=repo,write:repo_hook&state=${cliPort}`
 
