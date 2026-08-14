@@ -6,6 +6,9 @@ import fs from "node:fs";
 import { initConfigFile, readConfigFile } from "./utils/configHelper.js";
 import readline from "node:readline";
 import { Readable } from "node:stream";
+import http from "node:http";
+import { exec } from "node:child_process";
+import { saveToken } from "./utils/authHelper.js";
 const program = new Command();
 // Define the "deploy" command
 program
@@ -185,6 +188,32 @@ program
             continue;
         Logger.log(line);
     }
+});
+// For auth
+program
+    .command("auth")
+    .description("Authenticate with GitHub")
+    .action(async () => {
+    Logger.info("Authenticating with GitHub...");
+    // Step 1: Start a local server to listen for the callback
+    const server = http.createServer((req, res) => {
+        const url = new URL(req.url || "", `http://${req.headers.host}`);
+        if (req.url?.startsWith("/callback")) {
+            const token = url.searchParams.get("token");
+            if (token) {
+                saveToken(token); // Save to the config file
+                res.writeHead(200, { "Content-Type": "text/html" });
+                res.end("<h1>Authentication successful! You can close this window.</h1>");
+                // Shut down CLI server cleanly 
+                server.close();
+                process.exit(0);
+            }
+        }
+    });
+    // Step 2: Open the GitHub OAuth URL in the user's default browser
+    exec(`open http://localhost:3000/auth/github?port=3001`);
+    Logger.info("Please complete the authentication in your browser. Waiting for callback...");
+    server.listen(3001);
 });
 // Parse the command-line arguments
 program.parse(process.argv);
