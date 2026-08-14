@@ -54,6 +54,7 @@ export function authRoutes(app: express.Express) {
                 return;
             }
 
+            Logger.info(tokenData.access_token);
             Logger.info("GitHub access token retrieved successfully");
 
 
