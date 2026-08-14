@@ -17,7 +17,7 @@ export function authRoutes(app: express.Express) {
     app.get('/auth/github/callback', async (req, res) => {
 
         // Step 1: Handle GitHub callback and exchange code for access token
-        const code = req.query.code as string; // Code github send after user authorize the app
+        const code = req.query.code as string;// Code github send after user authorize the app
         const state = req.query.state as string;
 
         if (!code || !state) {
