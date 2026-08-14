@@ -19,5 +19,6 @@ Day 10 - implemented real time build logs logging in client terminal using node 
 Day 11 - Implemented the list route to show deployment details, plus stop and destroy routes.
 Day 12 - Implemented logs for crashed or running contianer & added env keys injecting while building contianer
 
+## Level - 4 (Adding Github auth)
 
-"New for tomorrow"
+Day 13 - Implemented authenaction route for git auth right from the temrinal 
