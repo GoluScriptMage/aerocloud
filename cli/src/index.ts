@@ -107,7 +107,10 @@ program
 
         Logger.info("Fetching deployments list from aerocloud...");
         const response = await fetch("http://localhost:3000/list", {
-            method: "GET"
+            method: "GET",
+            headers: {
+                'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
+            }
         });
 
         if (!response.ok) {
@@ -233,6 +236,15 @@ program
     .description("Authenticate with GitHub")
     .action(async () => {
         Logger.info("Authenticating with GitHub...");
+
+
+        // Check if the token already exists in the config file
+        const existingToken = getToken(false) as any;
+        if (existingToken) {
+            Logger.success("You are already authenticated with GitHub.");
+            Logger.info(`Username: ${existingToken.username}`);
+            return;
+        }
 
         // Step 1: Start a local server to listen for the callback
         const server = http.createServer((req, res) => {

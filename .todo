@@ -3,9 +3,9 @@
     ✔ Clear the logs from client @done(26-08-15 10:48)
 
 ☐ Check authenciation @started(26-08-15 10:48)
-    ☐ Check for full process
-    ☐ Return error's on failed auth
-    ☐ Check for already logged in user
+    ✔ Check for full process @done(26-08-15 11:16)
+    ☐ Return error's on failed auth // Left
+    ✔ Check for already logged in user @done(26-08-15 11:18)
 
 ☐ Check for stop and destroy container routes
     ☐ Return error's on failed stop/destroy
