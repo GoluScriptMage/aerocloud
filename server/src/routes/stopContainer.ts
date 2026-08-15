@@ -7,6 +7,7 @@ export function stopContainer(app: express.Express) {
 
     app.get("/stop:subdomain", async (req, res) => {
         const subdomain = req.params.subdomain;
+        const user = (req as any).user;
 
         // 1. Validate subdomain
         if (!subdomain) {
@@ -14,7 +15,7 @@ export function stopContainer(app: express.Express) {
         }
         try {
             // 2. Get containerId from database based on subdomain
-            const deployment = getDeployment(subdomain);
+            const deployment = getDeployment(subdomain, user.githubId);    
             if (!deployment) {
                 return res.status(404).json({ error: "Deployment not found." });
             }
@@ -45,6 +46,7 @@ export function destroyContainer(app: express.Express) {
 
     app.get("/destroy:subdomain", async (req, res) => {
         const subdomain = req.params.subdomain;
+        const user = (req as any).user;
 
         // 1. Validate subdomain
         if (!subdomain) {
@@ -52,7 +54,7 @@ export function destroyContainer(app: express.Express) {
         }
         try {
             // 2. Get containerId from database based on subdomain
-            const deployment = getDeployment(subdomain);
+            const deployment = getDeployment(subdomain, user.githubId);
             if (!deployment) {
                 return res.status(404).json({ error: "Deployment not found." });
             }

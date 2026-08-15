@@ -100,6 +100,7 @@ program
         }
     });
 
+// To list all deployments for the authenticated user
 program
     .command("list")
     .description("List all deployments")
@@ -107,7 +108,10 @@ program
 
         Logger.info("Fetching deployments list from aerocloud...");
         const response = await fetch("http://localhost:3000/list", {
-            method: "GET"
+            method: "GET",
+            headers: {
+                'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
+            }
         });
 
         if (!response.ok) {
@@ -146,7 +150,10 @@ program
         Logger.info(`Stopping deployment for subdomain: ${subdomain}...`);
 
         const response = await fetch(`http://localhost:3000/stop${subdomain}`, {
-            method: "GET"
+            method: "GET",
+            headers: {
+                'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
+            }
         });
 
         if (!response.ok) {
@@ -167,7 +174,10 @@ program
         Logger.info(`Destroying deployment for subdomain: ${subdomain}...`);
 
         const response = await fetch(`http://localhost:3000/destroy${subdomain}`, {
-            method: "GET"
+            method: "GET",
+            headers: {
+                'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
+            }
         });
 
         if (!response.ok) {
@@ -193,7 +203,10 @@ program
         if (!options.follow) {
             Logger.info("Fetching logs in real-time for subdomain: " + subdomain);
             const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs`, {
-                method: "GET"
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
+                }
             });
 
             if (!response.ok) {
@@ -212,7 +225,10 @@ program
 
         // If the --follow option is not set, fetch the last 100 lines of logs
         const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs?follow=true`, {
-            method: "GET"
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
+            }
         })
 
         const nodeStream = Readable.fromWeb(response.body as any);
@@ -233,6 +249,15 @@ program
     .description("Authenticate with GitHub")
     .action(async () => {
         Logger.info("Authenticating with GitHub...");
+
+
+        // Check if the token already exists in the config file
+        const existingToken = getToken(false) as any;
+        if (existingToken) {
+            Logger.success("You are already authenticated with GitHub.");
+            Logger.info(`Username: ${existingToken.username}`);
+            return;
+        }
 
         // Step 1: Start a local server to listen for the callback
         const server = http.createServer((req, res) => {

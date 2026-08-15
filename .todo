@@ -2,19 +2,20 @@
     ✔ Return error's on failed deployment @done(26-08-15 10:48)
     ✔ Clear the logs from client @done(26-08-15 10:48)
 
-☐ Check authenciation @started(26-08-15 10:48)
-    ☐ Check for full process
-    ☐ Return error's on failed auth
-    ☐ Check for already logged in user
+✔ Check authenciation @started(26-08-15 10:48) @done(26-08-15 13:00) @lasted(2h12m6s)
+    ✔ Check for full process @done(26-08-15 13:00)
+    ✔ Return error's on failed auth // Left @done(26-08-15 13:00)
+    ✔ Check for already logged in user @done(26-08-15 11:18)
 
-☐ Check for stop and destroy container routes
-    ☐ Return error's on failed stop/destroy
-    ☐ Clear the logs from client
-    ☐ Returns error if container is not found
+✔ Check for stop and destroy container routes @done(26-08-15 13:00)
+    ✔ Return error's on failed stop/destroy @done(26-08-15 13:00)
+    ✔ Clear the logs from client @done(26-08-15 13:00)
+    ✔ Returns error if container is not found @done(26-08-15 13:00)
 
-☐ Check for crash and lists route
-    ☐ Return error's on failed crash/logs
+✔ Check for crash and lists route @done(26-08-15 11:31)
+    ✔ Return error's on failed crash/logs @done(26-08-15 11:31)
 
+✔ Destory the contianer if is failed on creation @done(26-08-15 12:58)
     
 'Cmd/Ctrl+Enter' // Triggers `Todo: Toggle Box`
 'Alt+Enter' // Triggers `Todo: Toggle Box`

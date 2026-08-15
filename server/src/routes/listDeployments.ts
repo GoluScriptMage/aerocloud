@@ -18,8 +18,10 @@ type DeploymentWithContainerInfo = {
 export function listDeployments(app: express.Express) {
     app.get("/list", async (req, res) => {
         try {
+            const user = (req as any).user;
+
             // 1. Get all deployments from the database
-            const deployments = getAllDeployments() as DeploymentWithContainerInfo[];
+            const deployments = getAllDeployments(user.githubId) as DeploymentWithContainerInfo[];
 
             // 2. Promise.all to get container info for each deployment
             const deploymentsWithContainerInfo = await Promise.all(deployments.map(
@@ -35,7 +37,7 @@ export function listDeployments(app: express.Express) {
                     }
 
                     // 2c. If containerId doesn't exists, get return base info
-                    if (dep.containerId === null) {
+                    if (!dep.containerId || dep.containerId === "") {
                         return baseInfo;
                     }
 
