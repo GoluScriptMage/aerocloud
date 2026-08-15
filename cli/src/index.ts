@@ -10,7 +10,7 @@ import readline from "node:readline";
 import { Readable } from "node:stream";
 import http from "node:http";
 import { exec } from "node:child_process";
-import { saveToken } from "./utils/authHelper.js";
+import { getToken, saveToken } from "./utils/authHelper.js";
 
 const program = new Command();
 
@@ -63,6 +63,9 @@ program
         const response = await fetch("http://localhost:3000/deploy", {
             method: 'POST',
             body: formData,
+            headers: {
+                authorization: `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
+            }
         });
 
         if (!response.body) {

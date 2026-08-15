@@ -22,11 +22,13 @@ export function deployRoutes(app: express.Express) {
     // 2. Define a route to handle file uploads
     app.post("/deploy", upload.single("file"), (req, res) => {
         Logger.info("Received a deployment request");
+        const user = (req as any).user;
+        Logger.info(`Authenticated user: ${user?.username} (${user?.githubId})`);
 
         /**
          * Check for subdomain if already exists in db
          */
-        const data = getDeployment(req.body.name);
+        const data = getDeployment(req.body.name, user?.githubId);
         if (data) {
             return res.status(409).json({
                 "error": "Conflict",
@@ -72,11 +74,7 @@ export function deployRoutes(app: express.Express) {
 
         // 4. Save deployment in db with status "deploying" 
         // Save the env vars 
-        if (parsedEnv) {
-            saveDeployment(subDomain, 0, "deploying", parsedEnv);
-        } else {
-            saveDeployment(subDomain, 0, "deploying");
-        }
+        saveDeployment(subDomain, 0, "deploying", parsedEnv || "", user?.githubId);
 
         if (fs.existsSync(path.join(targetDir, 'package.json'))) {
 
@@ -128,7 +126,7 @@ export function deployRoutes(app: express.Express) {
                         const dockerPort = await findAvailablePort();
 
                         // 5.1 Get the env vars from the database for this deployment
-                        const envVars = await getDeployment(subDomain) as { envVars?: string } | undefined;
+                        const envVars = await getDeployment(subDomain, user?.githubId) as { envVars?: string } | undefined;
 
                         // 5.2 Modify the env vars to be in the format expected by Docker
                         const modifiedEnvVars = envVars ? Object.entries(JSON.parse(envVars.envVars || "{}")).map(([key, value]) => `${key}=${value}`).join('\n') : undefined;
@@ -143,8 +141,9 @@ export function deployRoutes(app: express.Express) {
                             }
                         });
 
+                        Logger.info(`Container started successfully for deployment: ${subDomain} on port ${dockerPort}`);
                         await container.start();
-                        updateDeployment(subDomain, "deployed", container.id, dockerPort);
+                        updateDeployment(subDomain, "deployed", container.id, dockerPort, envVars?.envVars, user?.githubId);
 
                         res.status(200).write(JSON.stringify({
                             type: "result",
@@ -157,7 +156,7 @@ export function deployRoutes(app: express.Express) {
 
                     } catch (containerErr) {
                         Logger.error(`Container creation/start failed: ${containerErr}`);
-                        updateDeployment(subDomain, "failed", "", 0);
+                        updateDeployment(subDomain, "failed", "", 0, "", user?.githubId);
                         res.status(500).write(JSON.stringify({
                             type: "result",
                             status: "failed",

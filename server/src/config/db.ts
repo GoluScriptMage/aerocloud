@@ -45,7 +45,7 @@ export function getUserByApiKey(apiKeyHash: string) {
 // Function to save deployment information to the database
 export function saveDeployment(subdomain: string, port: number, status: string, envVars?: string, userId?: string) {
     const statement = db.prepare('INSERT INTO deployments (subdomain, port, status, envVars, userId) VALUES (?, ?, ?, ?, ?)');
-    statement.run(subdomain, port, status, envVars, userId || null);
+    statement.run(subdomain, port, status, envVars ?? null, userId ?? null);
 }
 
 // Function to retrieve one deployment information from the database
@@ -57,7 +57,7 @@ export function getDeployment(subdomain: string, userId: string) {
 // Update deployment status/container
 export function updateDeployment(subdomain: string, status: string, containerId: string, port?: number, envVars?: string, userId?: string) {
     const statement = db.prepare('UPDATE deployments SET containerId = ?, status = ?, port = ?, envVars = ? WHERE subdomain = ? AND userId = ?');
-    statement.run(containerId, status, port, envVars, subdomain, userId || null);
+    statement.run(containerId, status, port ?? null, envVars ?? null, subdomain, userId ?? null);
 }
 
 // GET All deployments by desc order
