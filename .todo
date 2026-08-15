@@ -1,8 +1,8 @@
-☐ Test deploy routes with deploying container 
-    ☐ Return error's on failed deployment
-    ☐ Clear the logs from client
+✔ Test deploy routes with deploying container @done(26-08-15 10:48)
+    ✔ Return error's on failed deployment @done(26-08-15 10:48)
+    ✔ Clear the logs from client @done(26-08-15 10:48)
 
-☐ Check authenciation 
+☐ Check authenciation @started(26-08-15 10:48)
     ☐ Check for full process
     ☐ Return error's on failed auth
     ☐ Check for already logged in user
@@ -15,3 +15,10 @@
 ☐ Check for crash and lists route
     ☐ Return error's on failed crash/logs
 
+    
+'Cmd/Ctrl+Enter' // Triggers `Todo: Toggle Box`
+'Alt+Enter' // Triggers `Todo: Toggle Box`
+'Alt+D' // Triggers `Todo: Toggle Done`
+'Alt+C' // Triggers `Todo: Toggle Cancelled`
+'Alt+S' // Triggers `Todo: Toggle Start`
+'Cmd/Ctrl+Shift+A' // Triggers  `Todo: Archive`

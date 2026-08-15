@@ -52,7 +52,6 @@ export async function findAvailablePort(startPort: number = 1024, endPort: numbe
             Logger.error(`Error: Invalid port returned by goportscan: ${result}`);
             throw new Error(`Error: Invalid port returned by goportscan: ${result}`);
         }
-        Logger.info(`Available port found: ${port}`);
         return port;
     } catch (error) {
         Logger.error(`Error executing goportscan: ${error}`);
