@@ -22,3 +22,4 @@ Day 12 - Implemented logs for crashed or running contianer & added env keys inje
 ## Level - 4 (Adding Github auth)
 
 Day 13 - Implemented authenaction route for git auth right from the temrinal
+Day 14 - Fixes bug & soldify the authencation, rollback and checked every routes and fixes their fetch and db queries
