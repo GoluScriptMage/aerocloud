@@ -86,6 +86,7 @@ program
         }
     }
 });
+// To list all deployments for the authenticated user
 program
     .command("list")
     .description("List all deployments")
@@ -167,7 +168,10 @@ program
     if (!options.follow) {
         Logger.info("Fetching logs in real-time for subdomain: " + subdomain);
         const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs`, {
-            method: "GET"
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+            }
         });
         if (!response.ok) {
             const errorData = await response.json();
@@ -183,7 +187,10 @@ program
     }
     // If the --follow option is not set, fetch the last 100 lines of logs
     const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs?follow=true`, {
-        method: "GET"
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+        }
     });
     const nodeStream = Readable.fromWeb(response.body);
     const rl = readline.createInterface({ input: nodeStream });

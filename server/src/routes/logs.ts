@@ -13,13 +13,15 @@ export function getCrashLogs(app: express.Express) {
 
         const followQuery = req.query.follow;
         const subDomain = req.params.subdomain;
+        const user = (req as any).user;
 
+        
         if (!subDomain) {
             return res.status(400).json({ message: 'Subdomain is required' });
         }
 
         try {
-            const deployment = await getDeployment(subDomain);
+            const deployment = await getDeployment(subDomain, user.githubId);
             if (!deployment) {
                 return res.status(404).json({ message: 'No deployment found for this subdomain' });
             }
@@ -33,7 +35,7 @@ export function getCrashLogs(app: express.Express) {
             const container = Docker.getContainer(containerId);
 
             // 1.1 Check if the follow query parameter is set to true
-            if (followQuery && followQuery === 'false') {
+            if (!followQuery || followQuery === 'false') {
                 // 2. Fetch logs from the container
                 const logs = await container.logs({
                     stdout: true,
