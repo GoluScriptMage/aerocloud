@@ -237,10 +237,14 @@ program
 
             if (req.url?.startsWith("/callback")) {
                 const token = url.searchParams.get("token");
+                const apiKey = url.searchParams.get("apiKey") || null;
+                const username = url.searchParams.get("username") || null;
+
                 if (token) {
-                    saveToken(token); // Save to the config file
+                    saveToken(token, username!, apiKey!); // Save to the config file
                     res.writeHead(200, { "Content-Type": "text/html" });
                     res.end("<h1>Authentication successful! You can close this window.</h1>");
+                    Logger.success("Authentication successful! Token and API Key saved.");
 
                     // Shut down CLI server cleanly 
                     server.close();

@@ -1,19 +1,23 @@
 import express from 'express';
 import { Logger } from '../utils/logger.js';
+import { generateApiKey, hashApiKey, saveUser } from '../config/db.js';
 
 export function authRoutes(app: express.Express) {
 
+    // GitHub OAuth route redirect to GitHub for authentication
     app.get('/auth/github', async (req, res) => {
 
         // Step 1: Redirect user to GitHub for authentication
         const cliPort = req.query.port as string || '3001'; // Get the cliPort from the query parameters
+        const scopes = ['repo', 'write:repo_hook', 'user:email'].join(' '); // Scopes for GitHub OAuth
 
-        const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${process.env.GITHUB_REDIRECT_URI}&scope=repo,write:repo_hook&state=${cliPort}`
+        const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${process.env.GITHUB_REDIRECT_URI}&scope=${encodeURIComponent(scopes)}&state=${cliPort}`
 
         res.redirect(redirectUrl);
 
     })
 
+    // GitHub OAuth callback route to handle the response from GitHub
     app.get('/auth/github/callback', async (req, res) => {
 
         // Step 1: Handle GitHub callback and exchange code for access token
@@ -56,9 +60,54 @@ export function authRoutes(app: express.Express) {
 
             Logger.info("GitHub access token retrieved successfully");
 
+            // Step 2.1: Get github user info using the access token
+            const userRes = await fetch('https://api.github.com/user', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${tokenData.access_token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'User-Agent': 'Aerocloud-Server' // Optional: Set a user agent for GitHub API requests
+                }
+            })
 
-            // Step 3: Serve HTML to transfer the token to the CLI local port (state)
-            // Serve HTML to transfer the token to the CLI local port (state)     
+
+            const userData = await userRes.json() as { id: number, login: string, email: string | null };
+
+            // Step 2.2: Get user email info using the access token
+            let userEmail: string | null = userData.email || null; // Default to the email from the user data
+            if (!userEmail) {
+                try {
+                    // If the email is not available in the user data, fetch the user's emails
+                    const emailRes = await fetch('https://api.github.com/user/emails', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${tokenData.access_token}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'User-Agent': 'Aerocloud-Server' // Optional: Set a user agent for GitHub API requests
+                        }
+                    })
+                    if (emailRes.ok) {
+                        const emailData = await emailRes.json() as Array<{ email: string, primary: boolean, verified: boolean }>;
+                        const primaryEmail = emailData.find(email => (email.primary && email.verified) || emailData[0]); // Fallback to the first email if no primary verified email is found
+                        userEmail = primaryEmail?.email || null;
+                    } else {
+                        Logger.error(`Failed to retrieve user emails from GitHub. Status: ${emailRes.status}}`);
+                    }
+                } catch (emailErr) {
+                    Logger.error(`Error occurred while fetching user emails from GitHub: ${emailErr}`);
+                }
+            }
+
+            // Step 3: Generate a unique API key for the user and hash it save it in the database
+            const apiKey = generateApiKey(); // Generate a random API key
+            const hashedApiKey = hashApiKey(apiKey); // Hash the API key
+
+            // Step 3.1: Save the user info and hashed API key in the database
+            saveUser(userData.id.toString(), userData.login, userEmail, hashedApiKey); // Save the user info and hashed API key in the database
+
+            Logger.info(`GitHub user info retrieved: ${userData.login} (ID: ${userData.id}) (email: ${userEmail})`);
+
+            // Step 4: Serve HTML to transfer the token to the CLI local port (state)
             res.send(`
         <html>
             <body style="font-family: sans-serif; text-align: center;     
@@ -69,7 +118,7 @@ export function authRoutes(app: express.Express) {
                     // Pings local CLI server listener port
   
                     
-  fetch('http://localhost:${state}/callback?token=${tokenData.access_token}')        
+  fetch('http://localhost:${state}/callback?token=${tokenData.access_token}&apiKey=${apiKey}&username=${userData.login}')        
                         .then(() => {
                             window.close();
                         }).catch(err => console.error("CLI ping failed:",err));

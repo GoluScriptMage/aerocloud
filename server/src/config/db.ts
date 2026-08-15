@@ -31,7 +31,8 @@ db.exec(`
 
 // Function to save or update user 
 export function saveUser(githubId: string, username: string, email: string | null, apiKeyHash: string | null) {
-    const statement = db.prepare('INSERT INTO users(githubId, username, email, apiKeyHash) VALUES (?, ?, ?, ?)');
+    // Excluded sqllite ek special keyword hota jiska mtlb hai ki naye value jo hum query m pass kr rhe h
+    const statement = db.prepare('INSERT INTO users(githubId, username, email, apiKeyHash) VALUES (?, ?, ?, ?) ON CONFLICT(githubId) DO UPDATE SET username = excluded.username, email = excluded.email, apiKeyHash = excluded.apiKeyHash');
     statement.run(githubId, username, email, apiKeyHash);
 }
 
