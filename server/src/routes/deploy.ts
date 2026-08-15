@@ -5,13 +5,28 @@ import path from "path";
 import fs from "node:fs";
 import AdmZip from "adm-zip";
 import express from "express";
-import { getDeployment, updateDeployment } from "../config/db.js";
+import { deleteDeployment, getDeployment, updateDeployment } from "../config/db.js";
 import * as tar from 'tar';
 import docker from "../config/docker.js";
 import { ensureDockerFile } from "../utils/createDockerfile.js";
 import { saveDeployment } from "../config/db.js";
 import { findAvailablePort } from "../utils/goPortFinder.js";
 import { Logger } from "../utils/logger.js";
+
+export function rollbackDeployment(targetDir: string, subDomain: string, userId: string) {
+
+    try {
+        deleteDeployment(subDomain, userId);
+        if (fs.existsSync(targetDir)) {
+            fs.rmSync(targetDir, { recursive: true, force: true });
+            Logger.info(`Rollback successful: Deployment ${subDomain} removed and directory ${targetDir} deleted.`);
+        } else {
+            Logger.warn(`Rollback warning: Directory ${targetDir} does not exist.`);
+        }
+    } catch (error) {
+        Logger.error(`Rollback failed for deployment ${subDomain}: ${(error as Error).message}`);
+    }
+}
 
 export function deployRoutes(app: express.Express) {
 
@@ -156,7 +171,7 @@ export function deployRoutes(app: express.Express) {
 
                     } catch (containerErr) {
                         Logger.error(`Container creation/start failed: ${containerErr}`);
-                        updateDeployment(subDomain, "failed", "", 0, "", user?.githubId);
+                        rollbackDeployment(targetDir, subDomain, user?.githubId);
                         res.status(500).write(JSON.stringify({
                             type: "result",
                             status: "failed",

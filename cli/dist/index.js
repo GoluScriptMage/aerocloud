@@ -130,7 +130,10 @@ program
     .action(async (subdomain) => {
     Logger.info(`Stopping deployment for subdomain: ${subdomain}...`);
     const response = await fetch(`http://localhost:3000/stop${subdomain}`, {
-        method: "GET"
+        method: "GET",
+        headers: {
+            'Authorization': `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+        }
     });
     if (!response.ok) {
         const errorData = await response.json();
@@ -147,7 +150,10 @@ program
     .action(async (subdomain) => {
     Logger.info(`Destroying deployment for subdomain: ${subdomain}...`);
     const response = await fetch(`http://localhost:3000/destroy${subdomain}`, {
-        method: "GET"
+        method: "GET",
+        headers: {
+            'Authorization': `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+        }
     });
     if (!response.ok) {
         const errorData = await response.json();

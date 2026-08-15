@@ -12,9 +12,10 @@
     ☐ Clear the logs from client
     ☐ Returns error if container is not found
 
-☐ Check for crash and lists route
-    ☐ Return error's on failed crash/logs
+✔ Check for crash and lists route @done(26-08-15 11:31)
+    ✔ Return error's on failed crash/logs @done(26-08-15 11:31)
 
+☐ Destory the contianer if is failed on creation
     
 'Cmd/Ctrl+Enter' // Triggers `Todo: Toggle Box`
 'Alt+Enter' // Triggers `Todo: Toggle Box`
