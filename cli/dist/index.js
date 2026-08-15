@@ -8,7 +8,7 @@ import readline from "node:readline";
 import { Readable } from "node:stream";
 import http from "node:http";
 import { exec } from "node:child_process";
-import { saveToken } from "./utils/authHelper.js";
+import { getToken, saveToken } from "./utils/authHelper.js";
 const program = new Command();
 // Define the "deploy" command
 program
@@ -50,6 +50,9 @@ program
     const response = await fetch("http://localhost:3000/deploy", {
         method: 'POST',
         body: formData,
+        headers: {
+            authorization: `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+        }
     });
     if (!response.body) {
         Logger.error("No response stream received from server.");
@@ -200,10 +203,13 @@ program
         const url = new URL(req.url || "", `http://${req.headers.host}`);
         if (req.url?.startsWith("/callback")) {
             const token = url.searchParams.get("token");
+            const apiKey = url.searchParams.get("apiKey") || null;
+            const username = url.searchParams.get("username") || null;
             if (token) {
-                saveToken(token); // Save to the config file
+                saveToken(token, username, apiKey); // Save to the config file
                 res.writeHead(200, { "Content-Type": "text/html" });
                 res.end("<h1>Authentication successful! You can close this window.</h1>");
+                Logger.success("Authentication successful! Token and API Key saved.");
                 // Shut down CLI server cleanly 
                 server.close();
                 process.exit(0);

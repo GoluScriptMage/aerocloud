@@ -1,6 +1,17 @@
-// Implement this tomorrow
- "Add some logic to exit after a container is build successfully"
+☐ Test deploy routes with deploying container 
+    ☐ Return error's on failed deployment
+    ☐ Clear the logs from client
 
+☐ Check authenciation 
+    ☐ Check for full process
+    ☐ Return error's on failed auth
+    ☐ Check for already logged in user
 
- "Delte the deployment for the failed contianer buil"
- 
+☐ Check for stop and destroy container routes
+    ☐ Return error's on failed stop/destroy
+    ☐ Clear the logs from client
+    ☐ Returns error if container is not found
+
+☐ Check for crash and lists route
+    ☐ Return error's on failed crash/logs
+

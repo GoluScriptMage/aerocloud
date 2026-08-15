@@ -34,6 +34,8 @@ app.use((req, res, next) => {
         const statement = db.prepare("SELECT * FROM deployments WHERE subdomain = ? AND status = 'deployed'");
         const deployment = statement.get(subDomain) as { subdomain: string; port?: number; status: string } | undefined;
 
+        console.log(`[Proxy] Incoming request for subdomain: ${subDomain} (Deployment found: ${deployment ? 'Yes' : 'No'})`);
+        
         if (deployment) {
             if (deployment.port && deployment.port > 0) {
                 // Level 2: Proxy traffic to active Docker container port

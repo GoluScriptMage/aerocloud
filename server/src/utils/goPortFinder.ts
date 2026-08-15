@@ -10,15 +10,13 @@ export async function findAvailablePort(startPort: number = 1024, endPort: numbe
     // 1. Get binary path of goportscan
     const binaryPath = path.join(process.cwd(), 'bin', 'goportscan');
 
-    // TODO: Fix the process.exit instead of exiitng throw an error
-
     // 2. Check for binary existence
     if (!fs.existsSync(binaryPath)) {
         throw new Error (`Error: goportscan binary not found at ${binaryPath}. Please ensure the binary is present in the 'bin' directory.`);
     }
 
     // Query Database for the used ports
-    const usedPorts = getUsedPorts();
+    const usedPorts = getUsedPorts(); // Pass the userId to getUsedPorts function
     const usedPortList = usedPorts.map((row: any) => row.port).join(",");
 
     // 3. Execute the binary
@@ -54,6 +52,7 @@ export async function findAvailablePort(startPort: number = 1024, endPort: numbe
             Logger.error(`Error: Invalid port returned by goportscan: ${result}`);
             throw new Error(`Error: Invalid port returned by goportscan: ${result}`);
         }
+        Logger.info(`Available port found: ${port}`);
         return port;
     } catch (error) {
         Logger.error(`Error executing goportscan: ${error}`);
