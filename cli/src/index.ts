@@ -5,7 +5,7 @@ import { Logger } from "./utils/logger.js";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
 import chalk from "chalk";
-import { initConfigFile, readConfigFile } from "./utils/configHelper.js";
+import { initConfigFile, readConfigFile, sanitizeSubDomain } from "./utils/configHelper.js";
 import readline from "node:readline";
 import { Readable } from "node:stream";
 import http from "node:http";
@@ -45,6 +45,13 @@ program
         if (!customFileName || customFileName.trim() === '') {
             customFileName = `app-${Math.random().toString(36).substring(2, 8)}`;
         }
+        try {
+            sanitizeSubDomain(customFileName)
+        } catch (err) {
+            Logger.error((err as any).message);
+            process.exit(1);
+        }
+
 
         // 3.1 Check for env file and append to formdata
         if (!fs.existsSync(".env")) {
