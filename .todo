@@ -1,22 +1,14 @@
-✔ Test deploy routes with deploying container @done(26-08-15 10:48)
-    ✔ Return error's on failed deployment @done(26-08-15 10:48)
-    ✔ Clear the logs from client @done(26-08-15 10:48)
+✔ Defend for XOR attack @done(26-08-16 14:24)
+    ✔ Create function to take same time to check two strings @done(26-08-16 14:24)
 
-✔ Check authenciation @started(26-08-15 10:48) @done(26-08-15 13:00) @lasted(2h12m6s)
-    ✔ Check for full process @done(26-08-15 13:00)
-    ✔ Return error's on failed auth // Left @done(26-08-15 13:00)
-    ✔ Check for already logged in user @done(26-08-15 11:18)
+✔ Defend for sql injection @done(26-08-16 14:24)
+    ✔ Create function to sanitize input strings @done(26-08-16 14:24)
+    ✔ Defend in cli first @done(26-08-16 14:24)
+    ✔ Defend in server second @done(26-08-16 14:24)
 
-✔ Check for stop and destroy container routes @done(26-08-15 13:00)
-    ✔ Return error's on failed stop/destroy @done(26-08-15 13:00)
-    ✔ Clear the logs from client @done(26-08-15 13:00)
-    ✔ Returns error if container is not found @done(26-08-15 13:00)
+☐ Defend for zip slip attack @started(26-08-16 14:24)
+    ☐ zip Bomb guard 
 
-✔ Check for crash and lists route @done(26-08-15 11:31)
-    ✔ Return error's on failed crash/logs @done(26-08-15 11:31)
-
-✔ Destory the contianer if is failed on creation @done(26-08-15 12:58)
-    
 'Cmd/Ctrl+Enter' // Triggers `Todo: Toggle Box`
 'Alt+Enter' // Triggers `Todo: Toggle Box`
 'Alt+D' // Triggers `Todo: Toggle Done`
