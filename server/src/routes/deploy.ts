@@ -160,6 +160,9 @@ export function deployRoutes(app: express.Express) {
                                 Env: modifiedEnvVars ? modifiedEnvVars.split('\n') : undefined, // insersts the env vars into the container
                                 ExposedPorts: { "3000/tcp": {} },
                                 HostConfig: {
+                                    Memory: 512 * 1024 * 1024, // 512MB
+                                    MemorySwap: 1024 * 1024 * 1024, // 1GB (disk swap + memory)
+                                    NanoCpus: 1 * 1e9, // 1 CPU
                                     PortBindings: { "3000/tcp": [{ HostPort: dockerPort.toString() }] }
                                 }
                             });
