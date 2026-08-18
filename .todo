@@ -6,8 +6,8 @@
     ✔ Defend in cli first @done(26-08-16 14:24)
     ✔ Defend in server second @done(26-08-16 14:24)
 
-☐ Defend for zip slip attack @started(26-08-16 14:24)
-    ☐ zip Bomb guard 
+✔ Defend for zip slip attack @started(26-08-16 14:24) @done(26-08-16 15:11) @lasted(47m21s)
+    ✔ zip Bomb guard @done(26-08-16 15:11)
 
 'Cmd/Ctrl+Enter' // Triggers `Todo: Toggle Box`
 'Alt+Enter' // Triggers `Todo: Toggle Box`

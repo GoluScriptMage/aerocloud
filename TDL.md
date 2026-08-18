@@ -23,3 +23,4 @@ Day 12 - Implemented logs for crashed or running contianer & added env keys inje
 
 Day 13 - Implemented authenaction route for git auth right from the temrinal
 Day 14 - Fixes bug & soldify the authencation, rollback and checked every routes and fixes their fetch and db queries
+Dat 15 - Implemented security functions like Zip bomb, slip And XOR Attack and sanitization 
