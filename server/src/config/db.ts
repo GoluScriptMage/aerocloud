@@ -49,9 +49,15 @@ export function saveDeployment(subdomain: string, port: number, status: string, 
 }
 
 // Function to retrieve one deployment information from the database
-export function getDeployment(subdomain: string, userId: string) {
+export function getDeployment(subdomain: string, userId?: string) {
     const statement = db.prepare('SELECT * FROM deployments WHERE subdomain = ? AND userId = ?');
-    return statement.get(subdomain, userId);
+    return statement.get(subdomain, userId ?? null);
+}
+
+// function to get subdomain
+export function getSubDomain(subdomain: string) {
+    const statement = db.prepare('SELECT * FROM deployments WHERE subdomain = ?');
+    return statement.get(subdomain);
 }
 
 // Update deployment status/container
