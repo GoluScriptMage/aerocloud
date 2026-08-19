@@ -5,7 +5,7 @@ import { Logger } from "./utils/logger.js";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
 import chalk from "chalk";
-import { initConfigFile, readConfigFile, sanitizeSubDomain } from "./utils/configHelper.js";
+import { initConfigFile, readConfigFile, sanitizeSubDomain, writeConfigFile } from "./utils/configHelper.js";
 import readline from "node:readline";
 import { Readable } from "node:stream";
 import http from "node:http";
@@ -32,6 +32,7 @@ program
     .description("Deploy your application to aerocloud")
     .action(async () => {
         Logger.info("Deploying your application to aerocloud...");
+        initConfigFile(); // Ensure the config file is initialized before deployment
 
         // 1. get output dir of zip file
         const outputDirPath = await createArchive();
@@ -45,6 +46,7 @@ program
         if (!customFileName || customFileName.trim() === '') {
             customFileName = `app-${Math.random().toString(36).substring(2, 8)}`;
         }
+
         try {
             sanitizeSubDomain(customFileName)
         } catch (err) {
@@ -52,6 +54,8 @@ program
             process.exit(1);
         }
 
+        // Update the config file with the sanitized subdomain
+        writeConfigFile({ ...readConfigFile(), name: customFileName }); // Update the config file with the sanitized subdomain
 
         // 3.1 Check for env file and append to formdata
         if (!fs.existsSync(".env")) {
@@ -162,7 +166,7 @@ program
                 'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
             }
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json();
             Logger.error(`Failed to stop deployment: ${errorData.error}`);

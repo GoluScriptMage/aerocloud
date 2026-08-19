@@ -11,6 +11,12 @@
 ✔ Defend for zip slip attack @started(26-08-16 14:24) @done(26-08-16 15:11) @lasted(47m21s)
     ✔ zip Bomb guard @done(26-08-16 15:11)
 
+
+    ☐ Criticial bug in name validation @started(26-08-19 09:22)
+        ☐ Fix the bug in name validation
+        ☐ Add test cases for name validation
+    
+
 'Cmd/Ctrl+Enter' // Triggers `Todo: Toggle Box`
 'Alt+Enter' // Triggers `Todo: Toggle Box`
 'Alt+D' // Triggers `Todo: Toggle Done`

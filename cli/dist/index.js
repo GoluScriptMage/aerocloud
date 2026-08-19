@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { Logger } from "./utils/logger.js";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
-import { initConfigFile, readConfigFile } from "./utils/configHelper.js";
+import { initConfigFile, readConfigFile, sanitizeSubDomain, writeConfigFile } from "./utils/configHelper.js";
 import readline from "node:readline";
 import { Readable } from "node:stream";
 import http from "node:http";
@@ -26,6 +26,7 @@ program
     .description("Deploy your application to aerocloud")
     .action(async () => {
     Logger.info("Deploying your application to aerocloud...");
+    initConfigFile(); // Ensure the config file is initialized before deployment
     // 1. get output dir of zip file
     const outputDirPath = await createArchive();
     // 2. Get output file buffer
@@ -36,6 +37,15 @@ program
     if (!customFileName || customFileName.trim() === '') {
         customFileName = `app-${Math.random().toString(36).substring(2, 8)}`;
     }
+    try {
+        sanitizeSubDomain(customFileName);
+    }
+    catch (err) {
+        Logger.error(err.message);
+        process.exit(1);
+    }
+    // Update the config file with the sanitized subdomain
+    writeConfigFile({ ...readConfigFile(), name: customFileName }); // Update the config file with the sanitized subdomain
     // 3.1 Check for env file and append to formdata
     if (!fs.existsSync(".env")) {
         Logger.warn("No .env file found. Proceeding without it.");
@@ -143,7 +153,7 @@ program
     const data = await response.json();
     Logger.success(data.message);
 });
-// Destroy the deployment by subdomain
+// Destroy the deployment by subdomain 
 program
     .command("destroy <subdomain>")
     .description("Destroy a deployment by subdomain")
