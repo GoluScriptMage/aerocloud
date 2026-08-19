@@ -10,3 +10,12 @@
 'Alt+C' // Triggers `Todo: Toggle Cancelled`
 'Alt+S' // Triggers `Todo: Toggle Start`
 'Cmd/Ctrl+Shift+A' // Triggers  `Todo: Archive`
+
+CREATE TABLE blacklists (              const blockedIps = new
+  Set<string>();                                                 
+       type TEXT, -- 'ip' | 'user'         const blockedUsers =  
+  new Set<string>();                                             
+       value TEXT PRIMARY KEY,                                   
+       reason TEXT,                                              
+       createdAt DATETIME                                        
+    )  
