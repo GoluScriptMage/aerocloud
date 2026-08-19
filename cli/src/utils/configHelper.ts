@@ -11,16 +11,14 @@ export function initConfigFile() {
 
     const data = {
         name: '',
-        _comment: 'This is default config file for deployment. You can change the name to what u want. This name will be used as sub-domain for your deployment. e.g. http://<name>.localhost:8080',
         publish: '.',
-        _comment_publish: 'Path to the build directory containing the files to be published. Use the default path for Next.js & Nodejs projects',
         buildCommand: '',
-        _comment_buildCommand: 'Optional: Command to build your project before deployment. If specified, this command will be executed before creating the archive for deployment.'
+        repo: "",
+        branch: "main",
     }
 
     // Check if file exists
     const targetFilePath = path.join(process.cwd(), fileName);
-    console.log(chalk.blue(`Initializing aerocloud configuration file: ${targetFilePath}`));
     if (!fs.existsSync(targetFilePath)) {
         fs.writeFileSync(targetFilePath, JSON.stringify(data, null, 4), 'utf-8');
     }
@@ -44,6 +42,16 @@ export function readConfigFile(params?: string) {
     return configData;
 }
 
+export function writeConfigFile(data: any) {
+    const targetFilePath = path.join(process.cwd(), 'aerocloud.json');
+    if (!fs.existsSync(targetFilePath)) {
+        Logger.error(`Config file 'aerocloud.json' not found in the current directory.`);
+        return;
+    }
+
+    fs.writeFileSync(targetFilePath, JSON.stringify(data, null, 4), 'utf-8');
+}
+
 // Function to run the build command if it exists in the configuration file
 export function runBuildCommandIfExists() {
     const buildCommand = readConfigFile('buildCommand');
@@ -63,7 +71,7 @@ export function runBuildCommandIfExists() {
 export function sanitizeSubDomain(input: string): string {
     const regex = /^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/;
     if (!regex.test(input)) {
-         throw new Error(`Invalid inputs: ${input}. Only lowercase letters, numbers and hypens are allowed.`)
+        throw new Error(`Invalid inputs: ${input}. Only lowercase letters, numbers and hypens are allowed.`)
     }
     return input;
 }
