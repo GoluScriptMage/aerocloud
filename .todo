@@ -1,13 +1,8 @@
-✔ Defend for XOR attack @done(26-08-16 14:24)
-    ✔ Create function to take same time to check two strings @done(26-08-16 14:24)
+☐ Implement Rate limiting
+    ☐ 100 req per 15 mins for normal routes
+    ☐ For /deploy route, 10 req per 15 mins
 
-✔ Defend for sql injection @done(26-08-16 14:24)
-    ✔ Create function to sanitize input strings @done(26-08-16 14:24)
-    ✔ Defend in cli first @done(26-08-16 14:24)
-    ✔ Defend in server second @done(26-08-16 14:24)
-
-☐ Defend for zip slip attack @started(26-08-16 14:24)
-    ☐ zip Bomb guard 
+☐ Implement Blocked user and user blocking middleware @started(26-08-19 09:22)
 
 'Cmd/Ctrl+Enter' // Triggers `Todo: Toggle Box`
 'Alt+Enter' // Triggers `Todo: Toggle Box`

@@ -162,7 +162,7 @@ program
                 'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
             }
         });
-
+        
         if (!response.ok) {
             const errorData = await response.json();
             Logger.error(`Failed to stop deployment: ${errorData.error}`);
@@ -173,7 +173,7 @@ program
         Logger.success(data.message);
     })
 
-// Destroy the deployment by subdomain
+// Destroy the deployment by subdomain 
 program
     .command("destroy <subdomain>")
     .description("Destroy a deployment by subdomain")
