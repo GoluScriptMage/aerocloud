@@ -1,6 +1,8 @@
-✔ Defend for XOR attack @done(26-08-16 14:24)
-    ✔ Create function to take same time to check two strings @done(26-08-16 14:24)
+☐ Implement Rate limiting
+    ☐ 100 req per 15 mins for normal routes
+    ☐ For /deploy route, 10 req per 15 mins
 
+☐ Implement Blocked user and user blocking middleware @started(26-08-19 09:22)
 ✔ Defend for sql injection @done(26-08-16 14:24)
     ✔ Create function to sanitize input strings @done(26-08-16 14:24)
     ✔ Defend in cli first @done(26-08-16 14:24)
@@ -15,3 +17,12 @@
 'Alt+C' // Triggers `Todo: Toggle Cancelled`
 'Alt+S' // Triggers `Todo: Toggle Start`
 'Cmd/Ctrl+Shift+A' // Triggers  `Todo: Archive`
+
+CREATE TABLE blacklists (              const blockedIps = new
+  Set<string>();                                                 
+       type TEXT, -- 'ip' | 'user'         const blockedUsers =  
+  new Set<string>();                                             
+       value TEXT PRIMARY KEY,                                   
+       reason TEXT,                                              
+       createdAt DATETIME                                        
+    )  

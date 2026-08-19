@@ -8,7 +8,14 @@ export function authRoutes(app: express.Express) {
     app.get('/auth/github', async (req, res) => {
 
         // Step 1: Redirect user to GitHub for authentication
-        const cliPort = req.query.port as string || '3001'; // Get the cliPort from the query parameters
+        let cliPort: number | string = req.query.port as string || '3001'; // Get the cliPort from the query parameters
+
+        // Step 2: Validate the cliPort to ensure it's a valid port number
+        cliPort = parseInt(cliPort, 10);
+        if (cliPort < 1024 || cliPort > 65535) {
+            return res.status(400).send("Invalid port number. Please provide a port number between 1024 and 65535.");
+        }
+
         const scopes = ['repo', 'write:repo_hook', 'user:email'].join(' '); // Scopes for GitHub OAuth
 
         const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${process.env.GITHUB_REDIRECT_URI}&scope=${encodeURIComponent(scopes)}&state=${cliPort}`
@@ -118,7 +125,7 @@ export function authRoutes(app: express.Express) {
                     // Pings local CLI server listener port
   
                     
-  fetch('http://localhost:${state}/callback?token=${tokenData.access_token}&apiKey=${apiKey}&username=${userData.login}')        
+  fetch('http://localhost:${parseInt(state, 10)}/callback?token=${tokenData.access_token}&apiKey=${apiKey}&username=${userData.login}')        
                         .then(() => {
                             window.close();
                         }).catch(err => console.error("CLI ping failed:",err));

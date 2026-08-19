@@ -25,8 +25,15 @@ db.exec(`
         envVars TEXT NULL,
         userId INTEGER NULL,
         FOREIGN KEY(userId) REFERENCES users(githubId)
-        
-    )
+    );
+
+    CREATE TABLE IF NOT EXISTS blocklist (
+        type TEXT, -- 'ip' | 'user,
+        value TEXT PRIMARY KEY,
+        reason TEXT, 
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    
 `)
 
 // Function to save or update user 
@@ -36,11 +43,9 @@ export function saveUser(githubId: string, username: string, email: string | nul
     statement.run(githubId, username, email, apiKeyHash);
 }
 
-// Function to fetch user by apiKey 
-export function getUserByApiKey(apiKeyHash: string) {
-    const statement = db.prepare('SELECT * FROM users WHERE apiKeyHash = ?');
-    return statement.get(apiKeyHash);
-}
+/** 
+ * Deployment Functions
+*/
 
 // Function to save deployment information to the database
 export function saveDeployment(subdomain: string, port: number, status: string, envVars?: string, userId?: string) {
@@ -84,6 +89,10 @@ export function getUsedPorts() {
     return statement.all();
 }
 
+/**
+ * API Key Generation and Hashing Functions
+ */
+
 // Helper function to hash the raw api key
 export function hashApiKey(apiKey: string): string {
     return crypto.createHash('sha256').update(apiKey).digest('hex'); // Converts the hash to a hexadecimal string
@@ -92,6 +101,29 @@ export function hashApiKey(apiKey: string): string {
 // Function to generate a unique API key for a user
 export function generateApiKey(): string {
     return 'ac_live' + crypto.randomBytes(24).toString('hex'); // Generates a 48-character hexadecimal string
+}
+
+// Function to fetch user by apiKey 
+export function getUserByApiKey(apiKeyHash: string) {
+    const statement = db.prepare('SELECT * FROM users WHERE apiKeyHash = ?');
+    return statement.get(apiKeyHash);
+}
+
+
+/**
+ * Blocks - Save & Get functions
+ */
+
+// Function to get blocked IPs
+export function getAllBlockedEntities() {
+    const statement = db.prepare("SELECT type, value FROM blocklist");
+    return statement.all() as { type: string, value: string }[];
+}
+
+// Save blocked entity to the database
+export function saveBlockedEntity(type: string, value: string, reason: string) {
+    const statement = db.prepare("INSERT INTO blocklist (type, value, reason) VALUES (?, ?, ?) ON CONFLICT(value) DO UPDATE SET reason = excluded.reason");
+    statement.run(type, value, reason);
 }
 
 export default db;

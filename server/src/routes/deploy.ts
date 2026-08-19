@@ -13,6 +13,7 @@ import { saveDeployment } from "../config/db.js";
 import { findAvailablePort } from "../utils/goPortFinder.js";
 import { Logger } from "../utils/logger.js";
 import { checkZipForSecurity, sanitizeSubDomain } from "../utils/security.js";
+import { deployRateLimiter } from "../utils/rateLimiter.js";
 
 export function rollbackDeployment(targetDir: string, subDomain: string, userId: string) {
 
@@ -33,10 +34,10 @@ export function deployRoutes(app: express.Express) {
 
     // 1. Configure multer storage
     const storage = multer.memoryStorage(); // Store files in memory for processing
-    const upload = multer({ storage: storage });
+    const upload = multer({ storage: storage, limits: { fileSize: 25 * 1024 * 1024 } }); // Limit file size to 25MB
 
     // 2. Define a route to handle file uploads
-    app.post("/deploy", upload.single("file"), (req, res) => {
+    app.post("/deploy", deployRateLimiter, upload.single("file"), async (req, res) => {
         const user = (req as any).user;
 
         // Check if a file exists
@@ -116,6 +117,10 @@ export function deployRoutes(app: express.Express) {
                 res.setHeader("Content-Type", "text/plain; charset=utf-8");
                 res.setHeader("Transfer-Encoding", "chunked");
 
+                // Get the port and claim it for the deployment to avoid race conditions
+                const dockerPort = await findAvailablePort();
+                updateDeployment(subDomain, "deploying", "", dockerPort, "", user?.githubId);
+
                 // Build docker image
                 docker.buildImage(tarStream, { t: imageName }, async (err, stream) => {
                     if (err || !stream) {
@@ -146,7 +151,6 @@ export function deployRoutes(app: express.Express) {
 
                         try {
                             Logger.info(`Docker image built successfully: ${imageName}`);
-                            const dockerPort = await findAvailablePort();
 
                             // 5.1 Get the env vars from the database for this deployment
                             const envVars = await getDeployment(subDomain, user?.githubId) as { envVars?: string } | undefined;
