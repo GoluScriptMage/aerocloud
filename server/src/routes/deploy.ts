@@ -13,6 +13,7 @@ import { saveDeployment } from "../config/db.js";
 import { findAvailablePort } from "../utils/goPortFinder.js";
 import { Logger } from "../utils/logger.js";
 import { checkZipForSecurity, sanitizeSubDomain } from "../utils/security.js";
+import { deployRateLimiter } from "../utils/rateLimiter.js";
 
 export function rollbackDeployment(targetDir: string, subDomain: string, userId: string) {
 
@@ -36,7 +37,7 @@ export function deployRoutes(app: express.Express) {
     const upload = multer({ storage: storage, limits: { fileSize: 25 * 1024 * 1024 } }); // Limit file size to 25MB
 
     // 2. Define a route to handle file uploads
-    app.post("/deploy", upload.single("file"), async (req, res) => {
+    app.post("/deploy", deployRateLimiter, upload.single("file"), async (req, res) => {
         const user = (req as any).user;
 
         // Check if a file exists

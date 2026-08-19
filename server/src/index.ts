@@ -15,6 +15,7 @@ import { authRoutes } from "./routes/auth.js";
 import dotenv from "dotenv";
 import { authenticateUserMiddleware } from "./utils/middleware.js";
 import { blockListGuard } from "./utils/blockListGuard.js";
+import { globalRateLimiter } from "./utils/rateLimiter.js";
 
 dotenv.config();
 const app = express();
@@ -22,6 +23,9 @@ const app = express();
 // Middlewares to parse JSON and handle file uploads
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Global rate limiter middleware for all routes
+app.use(globalRateLimiter);
 
 // Check for blocked IPs and users
 app.use(blockListGuard);
@@ -33,15 +37,11 @@ authRoutes(app);
 app.use(authenticateUserMiddleware);
 
 // Protected routes (authentication required)
-deployRoutes(app); // Handles deployment of applications
-
-listDeployments(app); // Lists all deployments for the authenticated user
-
-stopContainer(app); // Stops a specific container for the authenticated user
-
-destroyContainer(app); // Destroys a specific container for the authenticated user
-
-getCrashLogs(app); // Retrieves crash logs for a specific container for the authenticated user
+deployRoutes(app);
+listDeployments(app);
+stopContainer(app);
+destroyContainer(app);
+getCrashLogs(app);
 
 // Start the server
 app.listen(3000, () => {
