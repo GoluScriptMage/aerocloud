@@ -5,6 +5,10 @@ import crypto from "crypto";
 // Initialize the database connection
 const db: DatabaseType = new Database('aerocloud.db');
 
+// Important the WAL mode
+db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
+
 // Email null allowed to handle private profiles
 
 db.exec(`
