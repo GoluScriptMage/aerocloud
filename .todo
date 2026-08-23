@@ -1,8 +1,8 @@
-☐ Implement Rate limiting
-    ☐ 100 req per 15 mins for normal routes
-    ☐ For /deploy route, 10 req per 15 mins
+✔ Implement Rate limiting @done(26-08-23 09:00)
+    ✔ 100 req per 15 mins for normal routes @done(26-08-23 09:00)
+    ✔ For /deploy route, 10 req per 15 mins @done(26-08-23 09:00)
 
-☐ Implement Blocked user and user blocking middleware @started(26-08-19 09:22)
+✔ Implement Blocked user and user blocking middleware @started(26-08-19 09:22) @done(26-08-23 09:00) @lasted(3d23h38m26s)
 ✔ Defend for sql injection @done(26-08-16 14:24)
     ✔ Create function to sanitize input strings @done(26-08-16 14:24)
     ✔ Defend in cli first @done(26-08-16 14:24)
@@ -11,11 +11,29 @@
 ✔ Defend for zip slip attack @started(26-08-16 14:24) @done(26-08-16 15:11) @lasted(47m21s)
     ✔ zip Bomb guard @done(26-08-16 15:11)
 
-
-    ☐ Criticial bug in name validation @started(26-08-19 09:22)
-        ☐ Fix the bug in name validation
-        ☐ Add test cases for name validation
-    
+☐ AeroCloud v0.1 Release Endgame:
+    ☐ 1. Implement `aerocloud link` Feature (Interactive TTY Repo Selector & SQLite Link Sync) @started(26-08-23 09:48)
+        ☐ Fetch GitHub user repos sorted by `pushed_at`
+        ☐ Interactive `prompts` autocomplete dropdown
+        ☐ Write repo & branch to local `aerocloud.json`
+        ✔ Register linked project on server SQLite @done(26-08-23 09:48)
+    ☐ 2. Deployment & Rebuild Pipeline (Zero-Downtime Container Swap & Cleanup)
+        ☐ Pre-build port reservation
+        ☐ Spin new container & update proxy routing table
+        ☐ Graceful teardown of previous container & purge dangling images
+    ☐ 3. Removing and Building from Push (GitHub Webhook Auto-Deploy)
+        ☐ Register endpoint: POST /api/webhooks/github
+        ☐ HMAC-SHA256 signature verification with WEBHOOK_SECRET
+        ☐ Git clone/pull repository & trigger zero-downtime rebuild pipeline
+    ☐ 4. Bug Fixes & Name Validation Hardening
+        ☐ Fix critical bug in name validation & rollback scoping
+        ☐ Add edge test cases
+    ☐ 5. Performance Optimization & Guardrails
+        ☐ Response latency & memory profiling
+        ☐ Error boundary sanitization
+    ☐ 6. Final End-to-End Testing & Release v0.1 Tag
+        ☐ Full deployment lifecycle test (CLI deploy, link, git-push)
+        ☐ Tag and publish `v0.1` release on GitHub
 
 'Cmd/Ctrl+Enter' // Triggers `Todo: Toggle Box`
 'Alt+Enter' // Triggers `Todo: Toggle Box`
@@ -23,12 +41,3 @@
 'Alt+C' // Triggers `Todo: Toggle Cancelled`
 'Alt+S' // Triggers `Todo: Toggle Start`
 'Cmd/Ctrl+Shift+A' // Triggers  `Todo: Archive`
-
-CREATE TABLE blacklists (              const blockedIps = new
-  Set<string>();                                                 
-       type TEXT, -- 'ip' | 'user'         const blockedUsers =  
-  new Set<string>();                                             
-       value TEXT PRIMARY KEY,                                   
-       reason TEXT,                                              
-       createdAt DATETIME                                        
-    )  

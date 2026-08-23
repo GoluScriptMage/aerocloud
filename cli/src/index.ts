@@ -11,6 +11,7 @@ import { Readable } from "node:stream";
 import http from "node:http";
 import { exec } from "node:child_process";
 import { getToken, saveToken } from "./utils/authHelper.js";
+import prompts from "prompts";
 
 const program = new Command();
 
@@ -298,6 +299,8 @@ program
         server.listen(3001)
 
     })
+
+
 
 // Parse the command-line arguments
 program.parse(process.argv);

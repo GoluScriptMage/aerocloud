@@ -34,7 +34,18 @@ db.exec(`
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     
+    CREATE TABLE IF NOT EXISTS projects (
+        name TEXT PRIMARY KEY, 
+        repoFullName TEXT NOT NULL,
+        branch TEXT DEFAULT 'main',
+        userId TEXT NOT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+
+    CREATE INDEX IF NOT EXISTS idx_projects_userId ON projects(userId);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_repoFullName ON projects(repoFullName);
 `)
+
 
 // Function to save or update user 
 export function saveUser(githubId: string, username: string, email: string | null, apiKeyHash: string | null) {
@@ -124,6 +135,38 @@ export function getAllBlockedEntities() {
 export function saveBlockedEntity(type: string, value: string, reason: string) {
     const statement = db.prepare("INSERT INTO blocklist (type, value, reason) VALUES (?, ?, ?) ON CONFLICT(value) DO UPDATE SET reason = excluded.reason");
     statement.run(type, value, reason);
+}
+
+/**
+ * Project Management Functions
+ */
+
+// Function to save project information to the database
+export function saveProject(name: string, repoFullName: string, userId: string, branch?: string) {
+    const statement = db.prepare("INSERT INTO projects (name, repoFullName, branch, userId) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET repoFullName = excluded.repoFullName, branch = excluded.branch");
+    statement.run(name, repoFullName, branch ?? 'main', userId);
+}
+
+// Function to retrieve project information from the database
+export function getProjects(userId: string) {
+    const statement = db.prepare("SELECT * FROM projects WHERE userId = ?")
+    return statement.all(userId);
+}
+
+// Function to delete project information from the database
+export function deleteProject(name: string, userId: string) {
+    const statement = db.prepare("DELETE FROM projects WHERE name = ? AND userId = ?");
+    statement.run(name, userId);
+}
+
+export function getProjectByName(name: string, userId: string) {
+    const statement = db.prepare("SELECT * FROM projects WHERE name = ? AND userId = ?");
+    return statement.get(name, userId);
+}
+
+export function getProjectByRepo(repoFullName: string) {
+    const statement = db.prepare("SELECT * FROM projects WHERE repoFullName = ?");
+    return statement.get(repoFullName);
 }
 
 export default db;
