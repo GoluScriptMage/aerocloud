@@ -11,6 +11,7 @@ import { Readable } from "node:stream";
 import http from "node:http";
 import { exec } from "node:child_process";
 import { getToken, saveToken } from "./utils/authHelper.js";
+import { linkHelper } from "./utils/linkHelper.js";
 import prompts from "prompts";
 
 const program = new Command();
@@ -265,7 +266,8 @@ program
 
         // Check if the token already exists in the config file
         const existingToken = getToken(false) as any;
-        if (existingToken) {
+        const hoursSinceAuth = (Date.now() - (existingToken?.authenciatedAt || 0)) / (1000 * 60 * 60); // Hours 
+        if (existingToken && hoursSinceAuth < 8) {
             Logger.success("You are already authenticated with GitHub.");
             Logger.info(`Username: ${existingToken.username}`);
             return;
@@ -281,7 +283,8 @@ program
                 const username = url.searchParams.get("username") || null;
 
                 if (token) {
-                    saveToken(token, username!, apiKey!); // Save to the config file
+                    const authenciatedAt = Date.now();
+                    saveToken(token, username!, apiKey!, authenciatedAt); // Save to the config file
                     res.writeHead(200, { "Content-Type": "text/html" });
                     res.end("<h1>Authentication successful! You can close this window.</h1>");
                     Logger.success("Authentication successful! Token and API Key saved.");
@@ -299,6 +302,14 @@ program
         server.listen(3001)
 
     })
+
+// For linking the repo of user 
+program
+    .command("link")
+    .description("Link your GitHub repository to aerocloud")
+    .action(async () => {
+        await linkHelper();
+    });
 
 
 

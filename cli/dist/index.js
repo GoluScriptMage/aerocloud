@@ -9,6 +9,7 @@ import { Readable } from "node:stream";
 import http from "node:http";
 import { exec } from "node:child_process";
 import { getToken, saveToken } from "./utils/authHelper.js";
+import { linkHelper } from "./utils/linkHelper.js";
 const program = new Command();
 // Define the "deploy" command
 program
@@ -226,7 +227,8 @@ program
     Logger.info("Authenticating with GitHub...");
     // Check if the token already exists in the config file
     const existingToken = getToken(false);
-    if (existingToken) {
+    const hoursSinceAuth = (Date.now() - (existingToken?.authenciatedAt || 0)) / (1000 * 60 * 60); // Hours 
+    if (existingToken && hoursSinceAuth < 8) {
         Logger.success("You are already authenticated with GitHub.");
         Logger.info(`Username: ${existingToken.username}`);
         return;
@@ -239,7 +241,8 @@ program
             const apiKey = url.searchParams.get("apiKey") || null;
             const username = url.searchParams.get("username") || null;
             if (token) {
-                saveToken(token, username, apiKey); // Save to the config file
+                const authenciatedAt = Date.now();
+                saveToken(token, username, apiKey, authenciatedAt); // Save to the config file
                 res.writeHead(200, { "Content-Type": "text/html" });
                 res.end("<h1>Authentication successful! You can close this window.</h1>");
                 Logger.success("Authentication successful! Token and API Key saved.");
@@ -253,6 +256,13 @@ program
     exec(`open http://localhost:3000/auth/github?port=3001`);
     Logger.info("Please complete the authentication in your browser. Waiting for callback...");
     server.listen(3001);
+});
+// For linking the repo of user 
+program
+    .command("link")
+    .description("Link your GitHub repository to aerocloud")
+    .action(async () => {
+    await linkHelper();
 });
 // Parse the command-line arguments
 program.parse(process.argv);

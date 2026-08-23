@@ -16,6 +16,7 @@ import dotenv from "dotenv";
 import { authenticateUserMiddleware } from "./utils/middleware.js";
 import { blockListGuard } from "./utils/blockListGuard.js";
 import { globalRateLimiter } from "./utils/rateLimiter.js";
+import { linkRepo } from "./routes/linkRepo.js";
 
 dotenv.config();
 const app = express();
@@ -42,6 +43,7 @@ listDeployments(app);
 stopContainer(app);
 destroyContainer(app);
 getCrashLogs(app);
+linkRepo(app);
 
 // Start the server
 app.listen(3000, () => {

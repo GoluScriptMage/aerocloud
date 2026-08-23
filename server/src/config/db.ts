@@ -40,7 +40,7 @@ db.exec(`
         branch TEXT DEFAULT 'main',
         userId TEXT NOT NULL,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
+    );
 
     CREATE INDEX IF NOT EXISTS idx_projects_userId ON projects(userId);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_repoFullName ON projects(repoFullName);
@@ -148,7 +148,7 @@ export function saveProject(name: string, repoFullName: string, userId: string, 
 }
 
 // Function to retrieve project information from the database
-export function getProjects(userId: string) {
+export function getAllProjects(userId: string) {
     const statement = db.prepare("SELECT * FROM projects WHERE userId = ?")
     return statement.all(userId);
 }

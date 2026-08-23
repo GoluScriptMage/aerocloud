@@ -1,7 +1,7 @@
 {
-    "name": "",
+    "name": "nostalgia-playground",
     "publish": ".",
     "buildCommand": "",
-    "repo": "",
+    "repo": "GoluScriptMage/nostalgia-playground",
     "branch": "main"
 }
