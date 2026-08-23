@@ -3,4 +3,8 @@ dist/
 *.zip
 .DS_Store
 *.db
+*.db-wal
+*.db-shm
 aerocloud.db
+server/deployments/
+deployments/
