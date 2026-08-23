@@ -51,7 +51,7 @@ export async function linkHelper() {
     const linkedRepoFullName = new Set(aerocloudProjectsData.map((project: any) => project.repoFullName));
     const validRepos = githubReposData.filter((repo: any) => !repo.fork);
     const maxNameLen = Math.max(...validRepos.map((r: any) => r.name.length), 20);
-    
+
     const reposData = validRepos.map((repo: any) => {
         const isLinked = linkedRepoFullName.has(repo.full_name);
         const branchName = repo.default_branch || 'main';
@@ -107,9 +107,11 @@ export async function linkHelper() {
     // Step 5: Update local aerocloud.json
     initConfigFile();
     const currentConfig = readConfigFile() || {};
+    const projectName = selected.name; // Always sync project name with selected repository name
+
     writeConfigFile({
         ...currentConfig,
-        name: currentConfig.name && currentConfig.name.trim() !== '' ? currentConfig.name : selected.name,
+        name: projectName,
         repo: selected.fullName,
         branch: selected.branch
     });
@@ -123,11 +125,13 @@ export async function linkHelper() {
                 Authorization: `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                name: currentConfig.name && currentConfig.name.trim() !== '' ? currentConfig.name : selected.name,
+                name: projectName,
                 repoFullName: selected.fullName,
                 branch: selected.branch
             })
         });
+
+
 
         if (serverLinkResponse.ok) {
             Logger.success(`Successfully linked directory to ${chalk.green.bold(selected.fullName)} (${chalk.cyan(selected.branch)})!`);

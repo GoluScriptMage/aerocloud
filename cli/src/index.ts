@@ -186,7 +186,7 @@ program
     .action(async (subdomain: string) => {
         Logger.info(`Destroying deployment for subdomain: ${subdomain}...`);
 
-        const response = await fetch(`http://localhost:3000/destroy${subdomain}`, {
+        const response = await fetch(`http://localhost:3000/destroy/${subdomain}`, {
             method: "GET",
             headers: {
                 'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
@@ -310,8 +310,6 @@ program
     .action(async () => {
         await linkHelper();
     });
-
-
 
 // Parse the command-line arguments
 program.parse(process.argv);
