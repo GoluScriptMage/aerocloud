@@ -57,12 +57,17 @@ program
     const formData = new FormData();
     formData.append('file', fileBlob, 'test.zip');
     formData.append('name', customFileName);
+    const apiKey = getToken(false)?.apiKey; // Returns the full object, so we extract the apiKey
+    if (!apiKey) {
+        Logger.error("You must authenticate first. Please run 'aerocloud auth' to authenticate.");
+        return;
+    }
     // 5. Send the file using fetch post
     const response = await fetch("http://localhost:3000/deploy", {
         method: 'POST',
         body: formData,
         headers: {
-            authorization: `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+            authorization: `Bearer ${apiKey}` // Include the API key in the Authorization header
         }
     });
     if (!response.body) {
@@ -103,10 +108,15 @@ program
     .description("List all deployments")
     .action(async () => {
     Logger.info("Fetching deployments list from aerocloud...");
+    const apiKey = getToken(false)?.apiKey;
+    if (!apiKey) {
+        Logger.error("You must authenticate first. Please run 'aerocloud auth' to authenticate.");
+        return;
+    }
     const response = await fetch("http://localhost:3000/list", {
         method: "GET",
         headers: {
-            'Authorization': `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+            'Authorization': `Bearer ${apiKey}` // Include the API key in the Authorization header
         }
     });
     if (!response.ok) {
