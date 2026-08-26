@@ -13,6 +13,7 @@ import { exec } from "node:child_process";
 import { getToken, saveToken } from "./utils/authHelper.js";
 import { linkHelper } from "./utils/linkHelper.js";
 import prompts from "prompts";
+import { checkEnvFileExists, readEnvFile } from "./utils/envHelper.js";
 
 const program = new Command();
 
@@ -60,17 +61,22 @@ program
         writeConfigFile({ ...readConfigFile(), name: customFileName }); // Update the config file with the sanitized subdomain
 
         // 3.1 Check for env file and append to formdata
-        if (!fs.existsSync(".env")) {
+        const { exists, path: envFilePath } = checkEnvFileExists();
+        if (!exists) {
             Logger.warn("No .env file found. Proceeding without it.");
         }
 
         // 3.2 Create the env file blob if it exists
-        const envBlob = fs.existsSync(".env") ? new Blob([fs.readFileSync(".env")], { type: "text/plain" }) : null;
+        let envData = readEnvFile(envFilePath);
 
         // 4. Create Formdata & append fileBlob
         const formData = new FormData();
         formData.append('file', fileBlob, 'test.zip');
         formData.append('name', customFileName);
+        if (envData && envData.trim() !== '') {
+            formData.append('envVars', envData);
+        }
+        Logger.info("Sending deployment request to aerocloud server...");
 
         const apiKey = (getToken(false) as any)?.apiKey; // Returns the full object, so we extract the apiKey
         if (!apiKey) {
@@ -132,7 +138,7 @@ program
             Logger.error("You must authenticate first. Please run 'aerocloud auth' to authenticate.");
             return;
         }
-        
+
         const response = await fetch("http://localhost:3000/list", {
             method: "GET",
             headers: {
