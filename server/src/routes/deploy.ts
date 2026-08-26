@@ -5,7 +5,7 @@ import path from "path";
 import fs from "node:fs";
 import AdmZip from "adm-zip";
 import express from "express";
-import { deleteDeployment, getDeployment, getSubDomain, updateDeployment } from "../config/db.js";
+import { deleteDeployment, getDeployment, getSubDomain, saveProject, updateDeployment } from "../config/db.js";
 import * as tar from 'tar';
 import docker from "../config/docker.js";
 import { ensureDockerFile } from "../utils/createDockerfile.js";
@@ -38,21 +38,26 @@ export function deployRoutes(app: express.Express) {
 
     // 2. Define a route to handle file uploads
     app.post("/deploy", deployRateLimiter, upload.single("file"), async (req, res) => {
-        const user = (req as any).user;
-
-        // Check if a file exists
-        const file = (req as any).file;
-        if (!file) {
-            return res.status(400).send("No file uploaded.");
-        }
-
-        const fileName = req.body.name;
-
-        // 1. Create sub-Domain & targetDir
-        const subDomain = req.body.name && req.body.name.trim() !== '' ? req.body.name : `app-${crypto.randomBytes(3).toString('hex')}`;
-        const targetDir = path.join(process.cwd(), 'deployments', subDomain);
+        let targetDir = '';
 
         try {
+            const user = (req as any).user;
+
+            // Check if a file exists
+            const file = (req as any).file;
+            const envVars = req.body.envVars; // Get envVars from the request body
+            Logger.debug(`Received deployment request from user: ${user?.githubId}, subdomain: ${req.body.name}, envVars: ${envVars}`);
+
+            if (!file) {
+                return res.status(400).send("No file uploaded.");
+            }
+
+            const fileName = req.body.name;
+
+            // 1. Create sub-Domain & targetDir
+            const subDomain = req.body.name && req.body.name.trim() !== '' ? req.body.name : `app-${crypto.randomBytes(3).toString('hex')}`;
+            targetDir = path.join(process.cwd(), 'deployments', subDomain);
+            saveProject(subDomain, null, user?.githubId, 'main', envVars || "");
 
             // ** Important **
             // 1.1 Sanitize the subdomain to ensure 
@@ -82,19 +87,8 @@ export function deployRoutes(app: express.Express) {
             zip.extractAllTo(targetDir, true);
 
             // 3.1 Check for .env file 
-            const envFilePath = path.join(targetDir, '.env');
-            let envFileBuffer: Buffer | null = null;
-
-            // 3.2 Read the .env file if it exists
-            if (fs.existsSync(envFilePath)) {
-                Logger.info(`.env file found at ${envFilePath}`);
-                envFileBuffer = fs.readFileSync(envFilePath);
-            } else {
-                Logger.warn(`No .env file found in the deployment package.`);
-            }
-
-            // 3.3 Parse the .env file if it exists
-            const parsedEnv = envFileBuffer && JSON.stringify(dotenv.parse(envFileBuffer));
+            const parsedEnv = envVars && JSON.stringify(dotenv.parse(envVars));
+            Logger.debug(`Parsed environment variables: ${parsedEnv}: ${envVars}`);
 
             // 4. Save deployment in db with status "deploying" 
             // Save the env vars 

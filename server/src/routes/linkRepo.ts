@@ -49,6 +49,5 @@ export function linkRepo(app: express.Express) {
             Logger.error("Error linking project.");
             return res.status(500).json({ error: "Internal server error" });
         }
-
     })
 } 

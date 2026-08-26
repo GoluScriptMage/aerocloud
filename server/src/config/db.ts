@@ -41,15 +41,16 @@ db.exec(`
     );
     
     CREATE TABLE IF NOT EXISTS projects (
-        name TEXT PRIMARY KEY, 
-        repoFullName TEXT NOT NULL,
+        name TEXT PRIMARY KEY,
+        repoFullName TEXT NULL,
         branch TEXT DEFAULT 'main',
         userId TEXT NOT NULL,
+        envVars TEXT NULL,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE INDEX IF NOT EXISTS idx_projects_userId ON projects(userId);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_repoFullName ON projects(repoFullName);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_repoFullName ON projects(repoFullName) WHERE repoFullName IS NOT NULL;
 `)
 
 
@@ -158,9 +159,20 @@ export function saveBlockedEntity(type: string, value: string, reason: string) {
  */
 
 // Function to save project information to the database
-export function saveProject(name: string, repoFullName: string, userId: string, branch?: string) {
-    const statement = db.prepare("INSERT INTO projects (name, repoFullName, branch, userId) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET repoFullName = excluded.repoFullName, branch = excluded.branch");
-    statement.run(name, repoFullName, branch ?? 'main', userId);
+export function saveProject(name: string, repoFullName: string | null, userId: string, branch?: string, envVars?: string) {
+    const statement = db.prepare("INSERT INTO projects (name, repoFullName, branch, userId, envVars) VALUES (?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET repoFullName = excluded.repoFullName, branch = excluded.branch, envVars = excluded.envVars");
+    statement.run(name, repoFullName, branch ?? 'main', userId, envVars);
+}
+
+export function updateProjectEnvVars(name: string, userId: string, envVars: string) {
+    const statement = db.prepare("UPDATE projects SET envVars = ? WHERE name = ? AND userId = ?");
+    statement.run(envVars, name, userId);
+}
+
+export function getProjectEnvVars(name: string, userId: string) {
+    const statement = db.prepare("SELECT envVars FROM projects WHERE name = ? AND userId = ?");
+    const result = statement.get(name, userId);
+    return result ? (result as any).envVars : null;
 }
 
 // Function to retrieve project information from the database
