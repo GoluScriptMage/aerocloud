@@ -1,12 +1,13 @@
 import { Logger } from "../utils/logger.js";
 import express, { type Request, type Response } from "express";
-import { getProjectByRepo } from "../config/db.js";
+import { getProjectByRepo, getDecryptedAccessToken } from "../config/db.js";
 import crypto from "crypto";
 import { secureCompare } from "../utils/security.js";
+import { deployFromGitTarball } from "../utils/deployEngine.js";
 
 export function webhookRoutes(app: express.Express) {
 
-    // To recieve webhook events updated about code push
+    // To receive webhook events updated about code push
     app.post("/api/webhook/github", async (req: Request, res: Response) => {
         try {
 
@@ -17,7 +18,7 @@ export function webhookRoutes(app: express.Express) {
                 return res.status(400).json({ error: "Missing X-Hub-Signature-256 header" });
             }
 
-            // Step 2. Validate the webhook payload signature (this is a placeholder, actual implementation may vary)
+            // Step 2. Validate the webhook payload signature
             const myHash = "sha256=" + crypto.createHmac('sha256', process.env.WEBHOOK_SECRET || 'aerocloud_secret').update(typeof req.body === 'string' ? req.body : JSON.stringify(req.body)).digest('hex');
 
             // Step 3. Compare the computed hash with the signature from GitHub using secureCompare to prevent timing attacks
@@ -28,22 +29,43 @@ export function webhookRoutes(app: express.Express) {
 
             // 4. Get the repository name and full name from the webhook payload
             const data = req.body;
-            const [repoName, repoFullName] = [data.repository.name, data.repository.full_name]
-            if (!repoName || !repoFullName) {
+            const repoFullName = data.repository?.full_name;
+            if (!repoFullName) {
                 Logger.error("Missing repository information in the webhook payload");
                 return res.status(400).json({ error: "Missing repository information in the webhook payload" });
             }
 
             // 5. Log the received webhook event & get the project
             Logger.info(`Received GitHub webhook event for repository: ${repoFullName}`);
-            const project = getProjectByRepo(repoFullName);
+            const project = getProjectByRepo(repoFullName) as any;
             if (!project) {
                 Logger.error(`No project found for repository: ${repoFullName}`);
                 return res.status(404).json({ error: `No project found for repository: ${repoFullName}` });
             }
 
-            // 6. Create a new deployment for the repository (placeholder)
-            return res.status(200).json({ success: true, message: `Webhook received for ${(project as any).name}` });
+            // 6. Return 200 OK immediately to GitHub so it does not time out
+            res.status(200).json({ success: true, message: `Deployment triggered for ${project.name}` });
+
+            // 7. Trigger the build & container swap asynchronously in the background
+            const decryptedToken = getDecryptedAccessToken(project.userId);
+            if (!decryptedToken) {
+                Logger.error(`[Webhook] No decrypted access token found for user ID: ${project.userId}`);
+                return;
+            }
+
+            deployFromGitTarball({
+                subDomain: project.name,
+                repoFullName: repoFullName,
+                branch: project.branch || "main",
+                decryptedToken: decryptedToken,
+                userId: project.userId,
+                envVars: project.envVars
+            }).then((result) => {
+                Logger.success(`[Webhook] Continuous Deployment successful for ${project.name} on ${result.url}`);
+            }).catch((err) => {
+                Logger.error(`[Webhook] Deployment failed for ${project.name}: ${(err as Error).message}`);
+            });
+
         } catch (err) {
             Logger.error(`Error processing webhook: ${(err as Error).message}`);
             return res.status(500).json({ error: "Internal Server Error" });

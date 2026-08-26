@@ -14,8 +14,8 @@ export interface AuthenticatedRequest extends Request {
 
 export function authenticateUserMiddleware(req: Request, res: Response, next: NextFunction) {
 
-    if (req.path === '/favicon.ico' || req.path.startsWith('/auth') || req.path === '/sw.js') {
-        return next(); // Skip authentication for favicon and auth routes
+    if (req.path === '/favicon.ico' || req.path.startsWith('/auth') || req.path.startsWith('/api/webhook') || req.path === '/sw.js') {
+        return next(); // Skip authentication for favicon, auth, and webhook routes
     }
 
     // Step 1: Check for the Authorization header

@@ -17,6 +17,7 @@ import { authenticateUserMiddleware } from "./utils/middleware.js";
 import { blockListGuard } from "./utils/blockListGuard.js";
 import { globalRateLimiter } from "./utils/rateLimiter.js";
 import { linkRepo } from "./routes/linkRepo.js";
+import { webhookRoutes } from "./routes/webhookRoute.js";
 
 dotenv.config();
 const app = express();
@@ -33,6 +34,7 @@ app.use(blockListGuard);
 
 // Public routes (no authentication required)
 authRoutes(app);
+webhookRoutes(app);
 
 // Global Auth Guard (  applies to all routes below this line) 
 app.use(authenticateUserMiddleware);
