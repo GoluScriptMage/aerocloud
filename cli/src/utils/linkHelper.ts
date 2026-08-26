@@ -1,8 +1,25 @@
 import prompts from "prompts";
 import chalk from "chalk";
+import path from "node:path";
+import { execSync } from "node:child_process";
 import { Logger } from "./logger.js";
 import { getToken } from "./authHelper.js";
 import { initConfigFile, readConfigFile, writeConfigFile } from "./configHelper.js";
+
+function getLocalGitRepo(): { fullName: string, name: string } | null {
+    try {
+        const remoteUrl = execSync("git config --get remote.origin.url", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+        const match = remoteUrl.match(/github\.com[:/](.+?)(?:\.git)?$/);
+        if (!match) return null;
+        const fullName = match[1];
+        const name = fullName.split("/")[1] || fullName;
+        Logger.debug(`Detected local Git repository: ${fullName}: ${name}`);
+        
+        return { fullName, name };
+    } catch {
+        return null;
+    }
+}
 
 export async function linkHelper() {
     Logger.info("Linking your GitHub repository to aerocloud...");
@@ -52,62 +69,94 @@ export async function linkHelper() {
     const validRepos = githubReposData.filter((repo: any) => !repo.fork);
     const maxNameLen = Math.max(...validRepos.map((r: any) => r.name.length), 20);
 
-    const reposData = validRepos.map((repo: any) => {
-        const isLinked = linkedRepoFullName.has(repo.full_name);
-        const branchName = repo.default_branch || 'main';
+    let selected: any = null;
 
-        const nameStyled = isLinked
-            ? chalk.dim.strikethrough(repo.name)
-            : chalk.white.bold(repo.name);
+    // Step 3.1: Check if local directory has a Git remote origin configured
+    const localGit = getLocalGitRepo();
+    if (localGit) {
+        const isLinked = linkedRepoFullName.has(localGit.fullName);
+        if (isLinked) {
+            Logger.info(`This repository ${chalk.bold.green(localGit.fullName)} is already linked to AeroCloud!`);
+            return;
+        }
 
-        const paddedName = nameStyled + ' '.repeat(Math.max(1, (maxNameLen + 4) - repo.name.length));
+        const autoLinkPrompt = await prompts({
+            type: "confirm",
+            name: "linkDetected",
+            message: `Detected Git remote ${chalk.bold.cyan(localGit.fullName)}. Link to this repository?`,
+            initial: true
+        });
 
-        const branchStyled = isLinked
-            ? chalk.dim(`${branchName}  (linked)`)
-            : chalk.dim(branchName) + (repo.private ? chalk.yellow('  🔒 private') : '');
-
-        return {
-            title: `${paddedName} ${branchStyled}`,
-            value: {
-                name: repo.name,
-                fullName: repo.full_name,
-                branch: branchName,
-                private: repo.private,
-            },
-            disabled: isLinked
-        };
-    });
-
-    console.log();
-    console.log(chalk.gray("┌─────────────────────────────────────────────────────────────┐"));
-    console.log(chalk.gray("│") + chalk.bold.cyan("  AeroCloud ") + chalk.dim("› Link Repository                                ") + chalk.gray("│"));
-    console.log(chalk.gray("│") + chalk.dim("  Select a GitHub repository to deploy with this folder      ") + chalk.gray("│"));
-    console.log(chalk.gray("└─────────────────────────────────────────────────────────────┘"));
-    console.log();
-
-    // Step 4: Feed the repos to prompts for user selection
-    const response = await prompts({
-        type: 'autocomplete',
-        name: 'selectedRepo',
-        message: 'Search repository:',
-        choices: reposData,
-        limit: 10,
-        suggest: (input, choices) =>
-            Promise.resolve(choices.filter(choice => choice.value.name.toLowerCase().includes(input.toLowerCase())))
-    });
-
-    // Step 4.1: Handle the case where user cancels
-    if (!response.selectedRepo) {
-        Logger.warn("Repository linking cancelled.");
-        return;
+        if (autoLinkPrompt.linkDetected) {
+            const matchedRepo = validRepos.find((r: any) => r.full_name.toLowerCase() === localGit.fullName.toLowerCase());
+            selected = {
+                name: localGit.name,
+                fullName: localGit.fullName,
+                branch: matchedRepo?.default_branch || "main"
+            };
+            
+        }
     }
 
-    const selected = response.selectedRepo;
+    if (!selected) {
+        const reposData = validRepos.map((repo: any) => {
+            const isLinked = linkedRepoFullName.has(repo.full_name);
+            const branchName = repo.default_branch || 'main';
+
+            const nameStyled = isLinked
+                ? chalk.dim.strikethrough(repo.name)
+                : chalk.white.bold(repo.name);
+
+            const paddedName = nameStyled + ' '.repeat(Math.max(1, (maxNameLen + 4) - repo.name.length));
+
+            const branchStyled = isLinked
+                ? chalk.dim(`${branchName}  (linked)`)
+                : chalk.dim(branchName) + (repo.private ? chalk.yellow('  🔒 private') : '');
+
+            return {
+                title: `${paddedName} ${branchStyled}`,
+                value: {
+                    name: repo.name,
+                    fullName: repo.full_name,
+                    branch: branchName,
+                    private: repo.private,
+                },
+                disabled: isLinked
+            };
+        });
+
+        console.log();
+        console.log(chalk.gray("┌─────────────────────────────────────────────────────────────┐"));
+        console.log(chalk.gray("│") + chalk.bold.cyan("  AeroCloud ") + chalk.dim("› Link Repository                                ") + chalk.gray("│"));
+        console.log(chalk.gray("│") + chalk.dim("  Select a GitHub repository to deploy with this folder      ") + chalk.gray("│"));
+        console.log(chalk.gray("└─────────────────────────────────────────────────────────────┘"));
+        console.log();
+
+        // Step 4: Feed the repos to prompts for user selection
+        const response = await prompts({
+            type: 'autocomplete',
+            name: 'selectedRepo',
+            message: 'Search repository:',
+            choices: reposData,
+            limit: 10,
+            suggest: (input, choices) =>
+                Promise.resolve(choices.filter(choice => choice.value.name.toLowerCase().includes(input.toLowerCase())))
+        });
+
+        // Step 4.1: Handle the case where user cancels
+        if (!response.selectedRepo) {
+            Logger.warn("Repository linking cancelled.");
+            return;
+        }
+
+        selected = response.selectedRepo;
+    }
 
     // Step 5: Update local aerocloud.json
     initConfigFile();
     const currentConfig = readConfigFile() || {};
-    const projectName = selected.name; // Always sync project name with selected repository name
+    const cwdName = path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '') || 'app';
+    const projectName = currentConfig.name && currentConfig.name.trim() !== '' ? currentConfig.name : cwdName;
 
     writeConfigFile({
         ...currentConfig,
