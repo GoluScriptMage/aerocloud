@@ -1,6 +1,7 @@
 import express from 'express';
 import { Logger } from '../utils/logger.js';
 import { generateApiKey, hashApiKey, saveUser } from '../config/db.js';
+import { encryptAccessToken } from '../utils/security.js';
 
 export function authRoutes(app: express.Express) {
 
@@ -16,7 +17,7 @@ export function authRoutes(app: express.Express) {
             return res.status(400).send("Invalid port number. Please provide a port number between 1024 and 65535.");
         }
 
-        const scopes = ['repo', 'write:repo_hook', 'user:email'].join(' '); // Scopes for GitHub OAuth
+        const scopes = ['repo', 'admin:repo_hook', 'write:repo_hook', 'user:email'].join(' '); // Scopes for GitHub OAuth
 
         const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${process.env.GITHUB_REDIRECT_URI}&scope=${encodeURIComponent(scopes)}&state=${cliPort}`
 
@@ -109,8 +110,11 @@ export function authRoutes(app: express.Express) {
             const apiKey = generateApiKey(); // Generate a random API key
             const hashedApiKey = hashApiKey(apiKey); // Hash the API key
 
-            // Step 3.1: Save the user info and hashed API key in the database
-            saveUser(userData.id.toString(), userData.login, userEmail, hashedApiKey); // Save the user info and hashed API key in the database
+            // Step 3.1: Encrypt the GitHub access token before saving it to the database
+            const encryptedAccessToken = encryptAccessToken(tokenData.access_token); // Encrypt the access token
+
+            // Step 3.2: Save the user info and hashed API key in the database
+            saveUser(userData.id.toString(), userData.login, userEmail, hashedApiKey, encryptedAccessToken); // Save the user info and hashed API key in the database
 
             Logger.info(`GitHub user info retrieved: ${userData.login} (ID: ${userData.id}) (email: ${userEmail})`);
 

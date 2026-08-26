@@ -31,7 +31,7 @@ export function createArchive() {
         // Step 3: Add files to the archive
         archive.glob("**/*", {
             cwd: buildDir || process.cwd(), // Current working directory
-            ignore: ["node_modules/**", "dist/**", "test.zip"], // Ignore node_modules, dist, and the output zip file itself
+            ignore: ["**/node_modules/**", "**/dist/**", "**/.git/**", "**/deployments/**", "node_modules/**", "dist/**", "test.zip"], // Ignore node_modules, dist, and the output zip file itself
             dot: true // Include hidden files (.e.g .gitignore)
         });
         // Step 4: Finalize the archive

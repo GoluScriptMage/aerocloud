@@ -14,8 +14,8 @@ export interface AuthenticatedRequest extends Request {
 
 export function authenticateUserMiddleware(req: Request, res: Response, next: NextFunction) {
 
-    if (req.path === '/favicon.ico' || req.path.startsWith('/auth') || req.path === '/sw.js') {
-        return next(); // Skip authentication for favicon and auth routes
+    if (req.path === '/favicon.ico' || req.path.startsWith('/auth') || req.path.startsWith('/api/webhook') || req.path === '/sw.js') {
+        return next(); // Skip authentication for favicon, auth, and webhook routes
     }
 
     // Step 1: Check for the Authorization header
@@ -47,7 +47,7 @@ export function authenticateUserMiddleware(req: Request, res: Response, next: Ne
         Logger.error("Invalid API key");
         return res.status(401).json({ error: 'Unauthorized' });
     }
-    console.log("User authenticated successfully:", (user as any).username);
+    Logger.info(`User authenticated successfully: ${(user as any).username}`);
 
     // Step 6: Attach the user information to the request object for downstream use
     (req as AuthenticatedRequest).user = user as any; // Attach user info to the request object

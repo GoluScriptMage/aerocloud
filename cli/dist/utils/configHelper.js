@@ -1,12 +1,14 @@
 import path from 'path';
 import fs from 'fs';
+import chalk from 'chalk';
 import { execSync } from 'child_process';
 import { Logger } from './logger.js';
 // Function to initialize the aerocloud configuration file
 export function initConfigFile() {
     const fileName = 'aerocloud.json';
+    const defaultName = path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '') || 'app';
     const data = {
-        name: '',
+        name: defaultName,
         publish: '.',
         buildCommand: '',
         repo: "",
@@ -14,6 +16,7 @@ export function initConfigFile() {
     };
     // Check if file exists
     const targetFilePath = path.join(process.cwd(), fileName);
+    console.log(chalk.blue(`Checking for existing config file at: ${targetFilePath}`));
     if (!fs.existsSync(targetFilePath)) {
         fs.writeFileSync(targetFilePath, JSON.stringify(data, null, 4), 'utf-8');
     }

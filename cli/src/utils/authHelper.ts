@@ -6,12 +6,12 @@ import { Logger } from './logger.js';
 const CONFIG_DIR = path.join(os.homedir(), '.aerocloud');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
-export function saveToken(token: string, username?: string, apiKey?: string): void {
+export function saveToken(token: string, username?: string, apiKey?: string, authenciatedAt?: number): void {
     try {
         if (!fs.existsSync(CONFIG_DIR)) {
             fs.mkdirSync(CONFIG_DIR, { recursive: true });
         }
-        const data = { token, username, apiKey };
+        const data = { token, username, apiKey, authenciatedAt };
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf-8');
         Logger.success("Session credentials securely cached locally.");
     } catch (error) {

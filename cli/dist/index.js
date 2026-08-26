@@ -9,6 +9,8 @@ import { Readable } from "node:stream";
 import http from "node:http";
 import { exec } from "node:child_process";
 import { getToken, saveToken } from "./utils/authHelper.js";
+import { linkHelper } from "./utils/linkHelper.js";
+import { checkEnvFileExists, readEnvFile } from "./utils/envHelper.js";
 const program = new Command();
 // Define the "deploy" command
 program
@@ -47,21 +49,31 @@ program
     // Update the config file with the sanitized subdomain
     writeConfigFile({ ...readConfigFile(), name: customFileName }); // Update the config file with the sanitized subdomain
     // 3.1 Check for env file and append to formdata
-    if (!fs.existsSync(".env")) {
+    const { exists, path: envFilePath } = checkEnvFileExists();
+    if (!exists) {
         Logger.warn("No .env file found. Proceeding without it.");
     }
     // 3.2 Create the env file blob if it exists
-    const envBlob = fs.existsSync(".env") ? new Blob([fs.readFileSync(".env")], { type: "text/plain" }) : null;
+    let envData = readEnvFile(envFilePath);
     // 4. Create Formdata & append fileBlob
     const formData = new FormData();
     formData.append('file', fileBlob, 'test.zip');
     formData.append('name', customFileName);
+    if (envData && envData.trim() !== '') {
+        formData.append('envVars', envData);
+    }
+    Logger.info("Sending deployment request to aerocloud server...");
+    const apiKey = getToken(false)?.apiKey; // Returns the full object, so we extract the apiKey
+    if (!apiKey) {
+        Logger.error("You must authenticate first. Please run 'aerocloud auth' to authenticate.");
+        return;
+    }
     // 5. Send the file using fetch post
     const response = await fetch("http://localhost:3000/deploy", {
         method: 'POST',
         body: formData,
         headers: {
-            authorization: `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+            authorization: `Bearer ${apiKey}` // Include the API key in the Authorization header
         }
     });
     if (!response.body) {
@@ -102,10 +114,15 @@ program
     .description("List all deployments")
     .action(async () => {
     Logger.info("Fetching deployments list from aerocloud...");
+    const apiKey = getToken(false)?.apiKey;
+    if (!apiKey) {
+        Logger.error("You must authenticate first. Please run 'aerocloud auth' to authenticate.");
+        return;
+    }
     const response = await fetch("http://localhost:3000/list", {
         method: "GET",
         headers: {
-            'Authorization': `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
+            'Authorization': `Bearer ${apiKey}` // Include the API key in the Authorization header
         }
     });
     if (!response.ok) {
@@ -159,7 +176,7 @@ program
     .description("Destroy a deployment by subdomain")
     .action(async (subdomain) => {
     Logger.info(`Destroying deployment for subdomain: ${subdomain}...`);
-    const response = await fetch(`http://localhost:3000/destroy${subdomain}`, {
+    const response = await fetch(`http://localhost:3000/destroy/${subdomain}`, {
         method: "GET",
         headers: {
             'Authorization': `Bearer ${getToken(false).apiKey}` // Include the API key in the Authorization header
@@ -226,7 +243,8 @@ program
     Logger.info("Authenticating with GitHub...");
     // Check if the token already exists in the config file
     const existingToken = getToken(false);
-    if (existingToken) {
+    const hoursSinceAuth = (Date.now() - (existingToken?.authenciatedAt || 0)) / (1000 * 60 * 60); // Hours 
+    if (existingToken && hoursSinceAuth < 8) {
         Logger.success("You are already authenticated with GitHub.");
         Logger.info(`Username: ${existingToken.username}`);
         return;
@@ -239,7 +257,8 @@ program
             const apiKey = url.searchParams.get("apiKey") || null;
             const username = url.searchParams.get("username") || null;
             if (token) {
-                saveToken(token, username, apiKey); // Save to the config file
+                const authenciatedAt = Date.now();
+                saveToken(token, username, apiKey, authenciatedAt); // Save to the config file
                 res.writeHead(200, { "Content-Type": "text/html" });
                 res.end("<h1>Authentication successful! You can close this window.</h1>");
                 Logger.success("Authentication successful! Token and API Key saved.");
@@ -253,6 +272,13 @@ program
     exec(`open http://localhost:3000/auth/github?port=3001`);
     Logger.info("Please complete the authentication in your browser. Waiting for callback...");
     server.listen(3001);
+});
+// For linking the repo of user 
+program
+    .command("link")
+    .description("Link your GitHub repository to aerocloud")
+    .action(async () => {
+    await linkHelper();
 });
 // Parse the command-line arguments
 program.parse(process.argv);

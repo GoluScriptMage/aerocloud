@@ -1,6 +1,6 @@
 
 import express from "express";
-import { getAllDeployments } from "../config/db.js";
+import { getAllDeployments, getDecryptedAccessToken } from "../config/db.js";
 import docker from "../config/docker.js";
 import { info } from "console";
 import { Logger } from "../utils/logger.js";
@@ -19,7 +19,7 @@ export function listDeployments(app: express.Express) {
     app.get("/list", async (req, res) => {
         try {
             const user = (req as any).user;
-
+            
             // 1. Get all deployments from the database
             const deployments = getAllDeployments(user.githubId) as DeploymentWithContainerInfo[];
 

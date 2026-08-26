@@ -1,9 +1,14 @@
 import Database from "better-sqlite3";
 import type { Database as DatabaseType } from "better-sqlite3";
 import crypto from "crypto";
+import { decryptAccessToken } from "../utils/security.js";
 
 // Initialize the database connection
 const db: DatabaseType = new Database('aerocloud.db');
+
+// Important the WAL mode
+db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
 
 // Email null allowed to handle private profiles
 
@@ -13,6 +18,7 @@ db.exec(`
         username TEXT NOT NULL,
         email TEXT NULL, 
         apiKeyHash TEXT UNIQUE NULL,
+        encryptedAccessToken TEXT NULL,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     
@@ -34,13 +40,35 @@ db.exec(`
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     
+    CREATE TABLE IF NOT EXISTS projects (
+        name TEXT PRIMARY KEY,
+        repoFullName TEXT NULL,
+        branch TEXT DEFAULT 'main',
+        userId TEXT NOT NULL,
+        envVars TEXT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_projects_userId ON projects(userId);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_repoFullName ON projects(repoFullName) WHERE repoFullName IS NOT NULL;
 `)
 
+
 // Function to save or update user 
-export function saveUser(githubId: string, username: string, email: string | null, apiKeyHash: string | null) {
-    // Excluded sqllite ek special keyword hota jiska mtlb hai ki naye value jo hum query m pass kr rhe h
-    const statement = db.prepare('INSERT INTO users(githubId, username, email, apiKeyHash) VALUES (?, ?, ?, ?) ON CONFLICT(githubId) DO UPDATE SET username = excluded.username, email = excluded.email, apiKeyHash = excluded.apiKeyHash');
-    statement.run(githubId, username, email, apiKeyHash);
+export function saveUser(githubId: string, username: string, email: string | null, apiKeyHash: string | null, githubAccessToken: string | null = null) {
+    // Excluded sqlite ek special keyword hota hai jiska matlab hai incoming naye value
+    // COALESCE ka matlab hai ki agar naya value null hai toh purana value hi preserve hoga
+    const statement = db.prepare('INSERT INTO users(githubId, username, email, apiKeyHash, encryptedAccessToken) VALUES (?, ?, ?, ?, ?) ON CONFLICT(githubId) DO UPDATE SET username = excluded.username, email = excluded.email, apiKeyHash = excluded.apiKeyHash, encryptedAccessToken = COALESCE(excluded.encryptedAccessToken, users.encryptedAccessToken)');
+    statement.run(githubId, username, email, apiKeyHash, githubAccessToken);
+}
+
+export function getDecryptedAccessToken(githubId: string): string | null {
+    const statement = db.prepare('SELECT encryptedAccessToken FROM users WHERE githubId = ?');
+    const token = statement.get(githubId) as { encryptedAccessToken: string };
+    if (!token || !token.encryptedAccessToken) {
+        return null;
+    }
+    return decryptAccessToken(token?.encryptedAccessToken) || null;
 }
 
 /** 
@@ -124,6 +152,49 @@ export function getAllBlockedEntities() {
 export function saveBlockedEntity(type: string, value: string, reason: string) {
     const statement = db.prepare("INSERT INTO blocklist (type, value, reason) VALUES (?, ?, ?) ON CONFLICT(value) DO UPDATE SET reason = excluded.reason");
     statement.run(type, value, reason);
+}
+
+/**
+ * Project Management Functions
+ */
+
+// Function to save project information to the database
+export function saveProject(name: string, repoFullName: string | null, userId: string, branch?: string, envVars?: string) {
+    const statement = db.prepare("INSERT INTO projects (name, repoFullName, branch, userId, envVars) VALUES (?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET repoFullName = excluded.repoFullName, branch = excluded.branch, envVars = excluded.envVars");
+    statement.run(name, repoFullName, branch ?? 'main', userId, envVars);
+}
+
+export function updateProjectEnvVars(name: string, userId: string, envVars: string) {
+    const statement = db.prepare("UPDATE projects SET envVars = ? WHERE name = ? AND userId = ?");
+    statement.run(envVars, name, userId);
+}
+
+export function getProjectEnvVars(name: string, userId: string) {
+    const statement = db.prepare("SELECT envVars FROM projects WHERE name = ? AND userId = ?");
+    const result = statement.get(name, userId);
+    return result ? (result as any).envVars : null;
+}
+
+// Function to retrieve project information from the database
+export function getAllProjects(userId: string) {
+    const statement = db.prepare("SELECT * FROM projects WHERE userId = ?")
+    return statement.all(userId);
+}
+
+// Function to delete project information from the database
+export function deleteProject(name: string, userId: string) {
+    const statement = db.prepare("DELETE FROM projects WHERE name = ? AND userId = ?");
+    statement.run(name, userId);
+}
+
+export function getProjectByName(name: string, userId: string) {
+    const statement = db.prepare("SELECT * FROM projects WHERE name = ? AND userId = ?");
+    return statement.get(name, userId);
+}
+
+export function getProjectByRepo(repoFullName: string) {
+    const statement = db.prepare("SELECT * FROM projects WHERE repoFullName = ?");
+    return statement.get(repoFullName);
 }
 
 export default db;

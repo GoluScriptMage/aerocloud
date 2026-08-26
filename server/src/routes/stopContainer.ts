@@ -5,7 +5,7 @@ import docker from "../config/docker.js";
 
 export function stopContainer(app: express.Express) {
 
-    app.get("/stop:subdomain", async (req, res) => {
+    app.get("/stop/:subdomain", async (req, res) => {
         const subdomain = req.params.subdomain;
         const user = (req as any).user;
 
@@ -44,9 +44,10 @@ export function stopContainer(app: express.Express) {
 
 export function destroyContainer(app: express.Express) {
 
-    app.get("/destroy:subdomain", async (req, res) => {
+    app.get("/destroy/:subdomain", async (req, res) => {
         const subdomain = req.params.subdomain;
-        const user = (req as any).user;
+        Logger.debug(`Received request to destroy container for subdomain: ${subdomain}`);
+        const user = (req as any).user; 
 
         // 1. Validate subdomain
         if (!subdomain) {
