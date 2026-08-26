@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import type { Database as DatabaseType } from "better-sqlite3";
 import crypto from "crypto";
+import { decryptAccessToken } from "../utils/security.js";
 
 // Initialize the database connection
 const db: DatabaseType = new Database('aerocloud.db');
@@ -17,6 +18,7 @@ db.exec(`
         username TEXT NOT NULL,
         email TEXT NULL, 
         apiKeyHash TEXT UNIQUE NULL,
+        encryptedAccessToken TEXT NULL,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     
@@ -52,10 +54,19 @@ db.exec(`
 
 
 // Function to save or update user 
-export function saveUser(githubId: string, username: string, email: string | null, apiKeyHash: string | null) {
+export function saveUser(githubId: string, username: string, email: string | null, apiKeyHash: string | null, githubAccessToken: string | null = null) {
     // Excluded sqllite ek special keyword hota jiska mtlb hai ki naye value jo hum query m pass kr rhe h
-    const statement = db.prepare('INSERT INTO users(githubId, username, email, apiKeyHash) VALUES (?, ?, ?, ?) ON CONFLICT(githubId) DO UPDATE SET username = excluded.username, email = excluded.email, apiKeyHash = excluded.apiKeyHash');
-    statement.run(githubId, username, email, apiKeyHash);
+    const statement = db.prepare('INSERT INTO users(githubId, username, email, apiKeyHash, encryptedAccessToken) VALUES (?, ?, ?, ?, ?) ON CONFLICT(githubId) DO UPDATE SET username = excluded.username, email = excluded.email, apiKeyHash = excluded.apiKeyHash, encryptedAccessToken = COALSEC(excluded.encryptedAccessToken, users.encryptedAccessToken)');
+    statement.run(githubId, username, email, apiKeyHash, githubAccessToken);
+}
+
+export function getDecryptedAccessToken(githubId: string): string | null {
+    const statement = db.prepare('SELECT encryptedAccessToken FROM users WHERE githubId = ?');
+    const token = statement.get(githubId) as { encryptedAccessToken: string };
+    if (!token || !token.encryptedAccessToken) {
+        return null;
+    }
+    return decryptAccessToken(token?.encryptedAccessToken) || null;
 }
 
 /** 
