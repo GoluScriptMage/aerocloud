@@ -25,3 +25,11 @@ Day 13 - Implemented authenaction route for git auth right from the temrinal
 Day 14 - Fixes bug & soldify the authencation, rollback and checked every routes and fixes their fetch and db queries
 Day 15 - Implemented Rate limiting and Block user guard to block ips, and users
 Day 16 - Implemented security functions like Zip bomb, slip And XOR Attack and sanitization
+Day 17 & 18
+- Implemented many things as follows 
+    - Link features
+    - Webhook route
+    - Modified env vars logic
+    - github repo pull 
+    - Still many things that are not working correctly 
+    
