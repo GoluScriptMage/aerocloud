@@ -56,6 +56,7 @@ db.exec(`
 // Function to save or update user 
 export function saveUser(githubId: string, username: string, email: string | null, apiKeyHash: string | null, githubAccessToken: string | null = null) {
     // Excluded sqllite ek special keyword hota jiska mtlb hai ki naye value jo hum query m pass kr rhe h
+    // COALSEC ka mtlb hai ki agar naye value null h to purana value hi use hoga
     const statement = db.prepare('INSERT INTO users(githubId, username, email, apiKeyHash, encryptedAccessToken) VALUES (?, ?, ?, ?, ?) ON CONFLICT(githubId) DO UPDATE SET username = excluded.username, email = excluded.email, apiKeyHash = excluded.apiKeyHash, encryptedAccessToken = COALSEC(excluded.encryptedAccessToken, users.encryptedAccessToken)');
     statement.run(githubId, username, email, apiKeyHash, githubAccessToken);
 }
