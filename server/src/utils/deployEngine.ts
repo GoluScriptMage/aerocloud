@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import * as tar from "tar";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import docker from "../config/docker.js";
 import { ensureDockerFile } from "./createDockerfile.js";
 import { findAvailablePort } from "./goPortFinder.js";
@@ -48,10 +48,27 @@ export async function deployFromGitTarball(
         throw new Error(`Failed to fetch tarball from GitHub: ${ghRes.status} ${ghRes.statusText}`);
     }
 
+    // 2.1 Security function to ensure tarball extraction under 50MB
+    let totalBytes = 0;
+    const maxTarballBytes = 50 * 1024 * 1024; // 50MB
+
+    // Smart meter to monitor the size of the tarball being extracted
+    const sizeGuard = new Transform({
+        transform(chunk, encoding, callback) {
+            totalBytes += chunk.length;
+            if (totalBytes > maxTarballBytes) {
+                callback(new Error("Tarball exceeds maximum allowed size of 50MB"));
+                return;
+            }
+            callback(null, chunk);
+        }
+    })
+
     // 3. Extract tarball stream to target directory (strip outer GitHub root folder)
     const nodeStream = Readable.fromWeb(ghRes.body as any);
     await new Promise<void>((resolve, reject) => {
         nodeStream
+            .pipe(sizeGuard) // check the bytes size in real time
             .pipe(tar.extract({ cwd: targetDir, strip: 1 }))
             .on("finish", () => resolve())
             .on("error", (err) => reject(err));

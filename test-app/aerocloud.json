@@ -1,5 +1,5 @@
 {
-    "name": "aerocloud",
+    "name": "test-app",
     "publish": ".",
     "buildCommand": "",
     "repo": "GoluScriptMage/aerocloud",

@@ -1,6 +1,6 @@
 import express from "express";
 import { Logger } from "../utils/logger.js";
-import { getAllProjects, saveProject } from "../config/db.js";
+import { getAllProjects, saveProject, getDecryptedAccessToken } from "../config/db.js";
 
 export function linkRepo(app: express.Express) {
 
@@ -44,6 +44,46 @@ export function linkRepo(app: express.Express) {
             // Save the project to the database
             saveProject(name, repoFullName, userId, branch);
             Logger.info(`Project linked successfully: ${name}`);
+
+            // Automatically register webhook on GitHub via API (Zero manual clicks!)
+            try {
+                const token = getDecryptedAccessToken(userId);
+                const webhookBaseUrl = process.env.WEBHOOK_BASE_URL || "https://uncambered-tomoko-savouringly.ngrok-free.dev";
+                if (token && webhookBaseUrl) {
+                    const hookRes = await fetch(`https://api.github.com/repos/${repoFullName}/hooks`, {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            "User-Agent": "AeroCloud-Server",
+                            Accept: "application/vnd.github.v3+json",
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            name: "web",
+                            active: true,
+                            events: ["push"],
+                            config: {
+                                url: `${webhookBaseUrl}/api/webhook/github`,
+                                content_type: "json",
+                                secret: process.env.WEBHOOK_SECRET || "aerocloud_secret"
+                            }
+                        })
+                    });
+
+                    if (hookRes.status === 201) {
+                        Logger.success(`[AutoWebhook] Automatically registered GitHub webhook on ${repoFullName}! 🚀`);
+                    } else if (hookRes.status === 422) {
+                        Logger.info(`[AutoWebhook] Webhook already active on ${repoFullName}`);
+                    } else {
+                        const errBody = await hookRes.text();
+                        Logger.warn(`[AutoWebhook] GitHub HTTP ${hookRes.status}: ${errBody}`);
+                    }
+                }
+            } catch (hookErr) {
+                Logger.warn(`[AutoWebhook] Could not auto-register webhook: ${(hookErr as Error).message}`);
+            }
+
+            return res.status(200).json({ success: true, message: `Project ${name} linked successfully` });
 
         } catch (err) {
             Logger.error("Error linking project.");

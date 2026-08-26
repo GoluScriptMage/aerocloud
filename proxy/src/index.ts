@@ -43,6 +43,7 @@ app.use((req, res, next) => {
                 proxy.web(req, res, { target: `http://localhost:${deployment.port}` }, (err) => {
                     // console.error(`[Proxy Error] Forwarding failed: ${err.message}`);
                     res.status(502).send("Bad Gateway: Container unreachable");
+                    console.log(`[Proxy Error] Forwarding failed for ${subDomain}: ${err.message}`);
                 });
                 return;
             }

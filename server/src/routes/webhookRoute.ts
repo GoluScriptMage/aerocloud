@@ -7,8 +7,8 @@ import { deployFromGitTarball } from "../utils/deployEngine.js";
 
 export function webhookRoutes(app: express.Express) {
 
-    // To receive webhook events updated about code push
-    app.post("/api/webhook/github", async (req: Request, res: Response) => {
+    // To receive webhook events updated about code push (supports both singular and plural)
+    const handleWebhook = async (req: Request, res: Response) => {
         try {
 
             // Step 1: Validate the webhook payload 
@@ -25,6 +25,13 @@ export function webhookRoutes(app: express.Express) {
             if (!secureCompare(myHash, signature)) {
                 Logger.error("Invalid webhook signature");
                 return res.status(401).json({ error: "Invalid webhook signature" });
+            }
+
+            // Step 3.1: Handle GitHub Ping Event
+            const githubEvent = req.headers['x-github-event'];
+            if (githubEvent === 'ping') {
+                Logger.success("[Webhook] Received GitHub ping event! Connection verified.");
+                return res.status(200).json({ message: "Pong! AeroCloud webhook verified successfully." });
             }
 
             // 4. Get the repository name and full name from the webhook payload
@@ -70,6 +77,8 @@ export function webhookRoutes(app: express.Express) {
             Logger.error(`Error processing webhook: ${(err as Error).message}`);
             return res.status(500).json({ error: "Internal Server Error" });
         }
-    });
+    };
 
+    app.post("/api/webhook/github", handleWebhook);
+    app.post("/api/webhooks/github", handleWebhook);
 }

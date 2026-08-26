@@ -17,7 +17,7 @@ export function authRoutes(app: express.Express) {
             return res.status(400).send("Invalid port number. Please provide a port number between 1024 and 65535.");
         }
 
-        const scopes = ['repo', 'write:repo_hook', 'user:email'].join(' '); // Scopes for GitHub OAuth
+        const scopes = ['repo', 'admin:repo_hook', 'write:repo_hook', 'user:email'].join(' '); // Scopes for GitHub OAuth
 
         const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${process.env.GITHUB_REDIRECT_URI}&scope=${encodeURIComponent(scopes)}&state=${cliPort}`
 
