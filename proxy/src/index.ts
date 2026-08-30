@@ -14,6 +14,8 @@ const __dirname = path.dirname(__filename);
 const dbPath = path.resolve(__dirname, "../../server/aerocloud.db");
 const db = new DatabaseSync(dbPath);
 
+console.log(`🚀 AeroCloud Proxy Server initialized with database at: ${dbPath}`);
+
 app.use((req, res, next) => {
     const host = req.get('host');
 
@@ -34,8 +36,6 @@ app.use((req, res, next) => {
         const statement = db.prepare("SELECT * FROM deployments WHERE subdomain = ? AND status = 'deployed'");
         const deployment = statement.get(subDomain) as { subdomain: string; port?: number; status: string } | undefined;
 
-        console.log(`[Proxy] Incoming request for subdomain: ${subDomain} (Deployment found: ${deployment ? 'Yes' : 'No'})`);
-        
         if (deployment) {
             if (deployment.port && deployment.port > 0) {
                 // Level 2: Proxy traffic to active Docker container port
@@ -55,7 +55,7 @@ app.use((req, res, next) => {
 
         if (fs.existsSync(finalPath)) {
             console.log(`[Proxy Static] Serving static files for ${subDomain}`);
-            express.static(finalPath)(req, res, next);
+            express.static(finalPath)(req, res, next); 
             return;
         }
 

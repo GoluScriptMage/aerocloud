@@ -151,7 +151,7 @@ export function deployRoutes(app: express.Express) {
 
                             // 5.2 Modify the env vars to be in the format expected by Docker
                             const modifiedEnvVars = envVars ? Object.entries(JSON.parse(envVars.envVars || "{}")).map(([key, value]) => `${key}=${value}`).join('\n') : undefined;
-                            const containerName = `${subDomain}${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
+                            const containerName = `${subDomain}-${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
 
                             const container = await docker.createContainer({
                                 Image: imageName,
@@ -168,6 +168,40 @@ export function deployRoutes(app: express.Express) {
 
                             Logger.info(`Container started successfully for deployment: ${subDomain} on port ${dockerPort}`);
                             await container.start();
+
+                            /**
+                             * Important FALLBACK: IF container crashed after starting, rollback the deployment for the user
+                             */
+
+                            // 1.5 sec wait to ensure contianer is up
+                            await new Promise((resolve, reject) => setTimeout(resolve, 1500))
+                            const inspectData = await container.inspect();
+
+                            // Check if the container is running
+                            if (!inspectData.State.Running) {
+                                Logger.error(`Container for deployment ${subDomain} is not running. Rolling back deployment.`);
+                                const exitCode = inspectData.State.ExitCode;
+                                let crashLogs = "NO Log output recorded";
+
+                                try {
+                                    const logsStream = await container.logs({ stdout: true, stderr: true, tail: 100 });
+                                    crashLogs = logsStream.toString('utf-8').trim();
+                                } catch { }
+
+                                // Rollback the deployment
+                                rollbackDeployment(targetDir, subDomain, user?.githubId);
+
+                                // Send a 500 response with the crash logs
+                                res.status(500).write(JSON.stringify({
+                                    type: "result",
+                                    status: "failed",
+                                    message: `Container for deployment ${subDomain} crashed after starting. Exit code: ${exitCode}. Logs: ${(crashLogs)}`
+                                }) + "\n");
+                                res.end();
+                                return;
+
+                            }
+
                             updateDeployment(subDomain, "deployed", container.id, dockerPort, envVars?.envVars, user?.githubId);
 
                             res.status(200).write(JSON.stringify({
