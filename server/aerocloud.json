@@ -1,0 +1,7 @@
+{
+    "name": "server",
+    "publish": ".",
+    "buildCommand": "",
+    "repo": "",
+    "branch": "main"
+}

@@ -151,10 +151,11 @@ export function deployRoutes(app: express.Express) {
 
                             // 5.2 Modify the env vars to be in the format expected by Docker
                             const modifiedEnvVars = envVars ? Object.entries(JSON.parse(envVars.envVars || "{}")).map(([key, value]) => `${key}=${value}`).join('\n') : undefined;
+                            const containerName = `${subDomain}${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
 
                             const container = await docker.createContainer({
                                 Image: imageName,
-                                name: subDomain,
+                                name: containerName,
                                 Env: modifiedEnvVars ? modifiedEnvVars.split('\n') : undefined, // insersts the env vars into the container
                                 ExposedPorts: { "3000/tcp": {} },
                                 HostConfig: {
