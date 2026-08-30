@@ -7,7 +7,7 @@ Mark `[x]` as you test and verify each pipeline end-to-end.
 ### 🔐 1. Authentication & GitHub App Linking
 - [x] **`aerocloud auth`**: Logs in via GitHub App, receives API key, and saves config in `~/.aerocloud/config.json`.
 - [x] **`aerocloud link`**: Interactive CLI prompt selects repository, generates `aerocloud.json`, saves project in SQLite, and auto-registers GitHub Webhook via API.
-- [ ] **Continuous Deployment on `git push`**: Push commit to GitHub $\rightarrow$ Server receives webhook $\rightarrow$ Streams tarball with 50MB SizeGuard $\rightarrow$ Builds Docker image $\rightarrow$ Deploys container on free port $\rightarrow$ Zero-downtime swap.
+- [ x] **Continuous Deployment on `git push`**: Push commit to GitHub $\rightarrow$ Server receives webhook $\rightarrow$ Streams tarball with 50MB SizeGuard $\rightarrow$ Builds Docker image $\rightarrow$ Deploys container on free port $\rightarrow$ Zero-downtime swap.
 
 ---
 
