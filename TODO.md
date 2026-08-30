@@ -12,7 +12,7 @@ Mark `[x]` as you test and verify each pipeline end-to-end.
 ---
 
 ### 🚀 2. Local Zero-Config Deployment (`aerocloud deploy`)
-- [ ] **Local Packaging & Upload**: CLI creates zip (ignoring `node_modules`, `.git`, `.env`), uploads to `POST /deploy`.
+- [x ] **Local Packaging & Upload**: CLI creates zip (ignoring `node_modules`, `.git`, `.env`), uploads to `POST /deploy`.
 - [ ] **Dockerfile Auto-Detection**: If Dockerfile missing, `ensureDockerFile()` automatically generates optimized Node/Go Dockerfile.
 - [ ] **Port Scanner**: Go port finder finds free port ($O(\log N)$ search) without colliding with active containers.
 - [ ] **Resource Limits (cgroups)**: Container runs with 512MB RAM and 1 CPU core limits.
