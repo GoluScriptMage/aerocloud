@@ -5,7 +5,7 @@ import { Logger } from "./logger.js";
 import { getUsedPorts } from "../config/db.js";
 
 // Function to find an available port using the goportscan binary
-export async function findAvailablePort(startPort: number = 1024, endPort: number = 49151): Promise<number> {
+export async function findAvailablePort(startPort: number = 4000, endPort: number = 9000): Promise<number> {
 
     // 1. Get binary path of goportscan
     const binaryPath = path.join(process.cwd(), 'bin', 'goportscan');

@@ -145,6 +145,19 @@ export async function deployFromGitTarball(
         await container.start();
         Logger.success(`[DeployEngine] Container started successfully for ${subDomain} on port ${dockerPort}`);
 
+        /**
+         * Impotant Fallback: If container fails to start, we must rollback the deployment and clean up the target directory to prevent broken deployments.
+         */
+
+        // Wait 
+        await new Promise((reject, resolve) => setTimeout(resolve, 1500));
+        const inspectData = await container.inspect();
+        if (!inspectData.State.Running) {
+            Logger.error(`[DeployEngine] Container failed to start for ${subDomain}. Rolling back deployment.`);
+            rollbackDeployment(targetDir, subDomain, userId);
+            throw new Error(`Container failed to start for ${subDomain}. Rolling back deployment.`);
+        }
+
         // 9. Update SQLite deployment record
         updateDeployment(subDomain, "deployed", container.id, dockerPort, envVars || "{}", userId);
 
