@@ -151,7 +151,7 @@ export async function deployFromGitTarball(
          */
 
         // Wait 
-        await new Promise((reject, resolve) => setTimeout(resolve, 1500));
+        await new Promise((resolve, reject) => setTimeout(resolve, 1500));
         const inspectData = await container.inspect();
         if (!inspectData.State.Running) {
             Logger.error(`[DeployEngine] Container failed to start for ${subDomain}. Rolling back deployment.`);
