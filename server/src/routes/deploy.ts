@@ -152,6 +152,7 @@ export function deployRoutes(app: express.Express) {
                             // 5.2 Modify the env vars to be in the format expected by Docker
                             const modifiedEnvVars = envVars ? Object.entries(JSON.parse(envVars.envVars || "{}")).map(([key, value]) => `${key}=${value}`).join('\n') : undefined;
                             const containerName = `${subDomain}-${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
+                            const portBindings = { "3000/tcp": [{ HostPort: dockerPort.toString() }] };
 
                             const container = await docker.createContainer({
                                 Image: imageName,
@@ -162,7 +163,7 @@ export function deployRoutes(app: express.Express) {
                                     Memory: 512 * 1024 * 1024, // 512MB
                                     MemorySwap: 1024 * 1024 * 1024, // 1GB (disk swap + memory)
                                     NanoCpus: 1 * 1e9, // 1 CPU
-                                    PortBindings: { "3000/tcp": [{ HostPort: dockerPort.toString() }] }
+                                    PortBindings: portBindings
                                 }
                             });
 
