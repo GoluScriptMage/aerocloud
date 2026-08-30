@@ -34,4 +34,4 @@ Day 17 & 18
     - Still many things that are not working correctly 
 
 ## Level 4.5 - Sprint to fix things
-Day 19 
+Day 19 - Testing and fixing the link problem 

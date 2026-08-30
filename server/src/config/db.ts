@@ -95,8 +95,8 @@ export function getSubDomain(subdomain: string) {
 
 // Update deployment status/container
 export function updateDeployment(subdomain: string, status: string, containerId: string, port?: number, envVars?: string, userId?: string) {
-    const statement = db.prepare('UPDATE deployments SET containerId = ?, status = ?, port = ?, envVars = ? WHERE subdomain = ? AND userId = ?');
-    statement.run(containerId, status, port ?? null, envVars ?? null, subdomain, userId ?? null);
+    const statement = db.prepare('UPDATE deployments SET containerId = ?, status = ?, port = ?, envVars = ? WHERE subdomain = ? AND (userId = ? OR ? IS NULL)');
+    statement.run(containerId, status, port ?? null, envVars ?? null, subdomain, userId ?? null, userId ?? null);
 }
 
 // GET All deployments by desc order
