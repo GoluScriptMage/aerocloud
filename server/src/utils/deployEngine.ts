@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
+import crypto from "node:crypto";
 import * as tar from "tar";
 import { Readable, Transform } from "node:stream";
 import docker from "../config/docker.js";
@@ -126,9 +127,10 @@ export async function deployFromGitTarball(
 
     try {
         // 8. Create and Start the New Container with cgroups limits
+        const containerName = `${subDomain}-${crypto.randomBytes(3).toString('hex')}`;
         const container = await docker.createContainer({
             Image: imageName,
-            name: `aerocloud-${subDomain}-${dockerPort}`,
+            name: containerName,
             Env: envArray,
             ExposedPorts: { "3000/tcp": {}, "8080/tcp": {} },
             HostConfig: {
@@ -137,7 +139,6 @@ export async function deployFromGitTarball(
                 NanoCpus: 1 * 1e9, // 1 CPU Core
                 PortBindings: {
                     "3000/tcp": [{ HostPort: dockerPort.toString() }],
-                    "8080/tcp": [{ HostPort: dockerPort.toString() }]
                 }
             }
         });
