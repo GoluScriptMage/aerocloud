@@ -154,9 +154,21 @@ export async function deployFromGitTarball(
         await new Promise((resolve, reject) => setTimeout(resolve, 1500));
         const inspectData = await container.inspect();
         if (!inspectData.State.Running) {
+            // 📜 Fetch exact crash reason from inside Docker container:  
+            let crashOutput = "";
+            try {
+                const rawLogs = await container.logs({
+                    stdout: true,
+                    stderr: true, tail: 20
+                });
+                crashOutput = rawLogs.toString("utf-8");
+            } catch { }
+
+            Logger.error(`[DeployEngine] Crash reason inside container:\n${crashOutput}`);
+
             Logger.error(`[DeployEngine] Container failed to start for ${subDomain}. Rolling back deployment.`);
             rollbackDeployment(targetDir, subDomain, userId);
-            throw new Error(`Container failed to start for ${subDomain}. Rolling back deployment.`);
+            throw new Error(`Container crashed on boot:\n${crashOutput}`);
         }
 
         // 9. Update SQLite deployment record
