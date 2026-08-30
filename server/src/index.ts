@@ -22,6 +22,9 @@ import { webhookRoutes } from "./routes/webhookRoute.js";
 dotenv.config();
 const app = express();
 
+// Trust reverse proxy (ngrok, reverse proxy, load balancer)
+app.set("trust proxy", 1);
+
 // Middlewares to parse JSON and handle file uploads
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

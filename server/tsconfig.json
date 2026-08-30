@@ -42,5 +42,7 @@
     "skipLibCheck": true,
     "moduleResolution": "nodenext",
     "esModuleInterop": true
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "deployments", "dist"]
 }
