@@ -6,12 +6,20 @@ import { Logger } from './logger.js';
 const CONFIG_DIR = path.join(os.homedir(), '.aerocloud');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
+export interface AuthConfig {
+    token: string;
+    username?: string;
+    apiKey?: string;
+    authenticatedAt?: number;
+    authenciatedAt?: number;
+}
+
 export function saveToken(token: string, username?: string, apiKey?: string, authenciatedAt?: number): void {
     try {
         if (!fs.existsSync(CONFIG_DIR)) {
             fs.mkdirSync(CONFIG_DIR, { recursive: true });
         }
-        const data = { token, username, apiKey, authenciatedAt };
+        const data = { token, username, apiKey, authenticatedAt: authenciatedAt, authenciatedAt };
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf-8');
         Logger.success("Session credentials securely cached locally.");
     } catch (error) {
@@ -19,7 +27,9 @@ export function saveToken(token: string, username?: string, apiKey?: string, aut
     }
 }
 
-export function getToken(onlytoken: boolean): string | null {
+export function getToken(onlytoken: true): string | null;
+export function getToken(onlytoken?: false): AuthConfig | null;
+export function getToken(onlytoken?: boolean): AuthConfig | string | null {
     try {
         if (!fs.existsSync(CONFIG_FILE)) {
             return null;
@@ -28,7 +38,7 @@ export function getToken(onlytoken: boolean): string | null {
         if (onlytoken) {
             return data.token || null;
         }
-        return data;
+        return data as AuthConfig;
     } catch (error) {
         return null;
     }
