@@ -16,10 +16,14 @@ export function createArchive() {
         const outputDirPath = path.join(process.cwd(), "test.zip"); // Output dir
         const output = fs.createWriteStream(outputDirPath);
         archive.pipe(output);
-        // Important: Listen for the 'close' event to resolve the promise when the archive is finalized
         output.on("close", () => {
-            Logger.success(`Archive created successfully: ${outputDirPath}`);
             resolve(outputDirPath); // Resolve the promise when the archive is finalized
+        });
+        output.on("error", (err) => {
+            reject(err);
+        });
+        archive.on("error", (err) => {
+            reject(err);
         });
         const buildDir = readConfigFile('publish') || ".";
         runBuildCommandIfExists(); // Run the build command if it exists in the configuration file
@@ -36,6 +40,5 @@ export function createArchive() {
         });
         // Step 4: Finalize the archive
         archive.finalize();
-        Logger.info(`Finalizing archive from directory: ${buildDir || process.cwd()}`);
     });
 }
