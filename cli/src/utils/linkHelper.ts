@@ -22,23 +22,25 @@ function getLocalGitRepo(): { fullName: string, name: string } | null {
 }
 
 export async function linkHelper() {
-    Logger.info("Linking your GitHub repository to aerocloud...");
+    Logger.header("AeroCloud Project Link");
 
     // Step 1: Get the token from the config file
     const accessToken = getToken(true); // Returns only the token string
-    const apiKey = (getToken(false) as any)?.apiKey; // Returns the full object, so we extract the apiKey
+    const apiKey = getToken(false)?.apiKey; // Returns the full object, so we extract the apiKey
 
     if (!accessToken || !apiKey) {
-        Logger.error("You must authenticate first. Please run 'aerocloud auth' to authenticate.");
-        return;
+        Logger.error("Authentication required. Please run 'aerocloud auth' to authenticate.");
+        process.exit(1);
     }
+
+    Logger.step("Fetching GitHub repositories and linked projects...");
 
     // Step 2: Fetch the user's GitHub repositories using the GitHub API & linked projects lists from db
     const githubResponse = fetch("https://api.github.com/user/repos?sort=pushed&direction=desc&per_page=30", {
         method: "GET",
         headers: {
             "Authorization": `token ${accessToken}`,
-            "Accept": "application/vnd.github.v3+json",
+            "Accept": "application/vnd.github.v3+json", // This actually tells github to return this specific version so in future schema change our code doesn't break
             "User-Agent": "AeroCloud-CLI"
         }
     });
@@ -53,12 +55,14 @@ export async function linkHelper() {
     const [githubRepos, aerocloudProjects] = await Promise.all([githubResponse, aerocloudResponse]);
 
     if (!githubRepos.ok) {
-        Logger.error("Failed to fetch GitHub repositories. Please check your access token.");
-        return;
+        const errMsg = await Logger.parseServerError(githubRepos);
+        Logger.error("Failed to fetch GitHub repositories", errMsg);
+        process.exit(1);
     }
     if (!aerocloudProjects.ok) {
-        Logger.error("Failed to fetch linked projects from aerocloud. Please check your API key.");
-        return;
+        const errMsg = await Logger.parseServerError(aerocloudProjects);
+        Logger.error("Failed to fetch linked projects from AeroCloud", errMsg);
+        process.exit(1);
     }
 
     const githubReposData = await githubRepos.json();
@@ -153,7 +157,7 @@ export async function linkHelper() {
     }
 
     // Step 5: Update local aerocloud.json
-    initConfigFile();
+    initConfigFile(true);
     const currentConfig = readConfigFile() || {};
     const cwdName = path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '') || 'app';
     const projectName = currentConfig.name && currentConfig.name.trim() !== '' ? currentConfig.name : cwdName;
@@ -180,14 +184,12 @@ export async function linkHelper() {
             })
         });
 
-
-
         if (serverLinkResponse.ok) {
             Logger.success(`Successfully linked directory to ${chalk.green.bold(selected.fullName)} (${chalk.cyan(selected.branch)})!`);
-            Logger.info(`Local configuration saved to ${chalk.bold('aerocloud.json')}`);
+            Logger.step(`Local configuration saved to ${chalk.bold('aerocloud.json')}`);
         } else {
-            const errData = await serverLinkResponse.json().catch(() => ({}));
-            Logger.warn(`Local config saved, but server sync reported: ${errData.error || serverLinkResponse.statusText}`);
+            const errMsg = await Logger.parseServerError(serverLinkResponse);
+            Logger.warn(`Local config saved, but server sync reported: ${errMsg}`);
         }
     } catch (err) {
         Logger.warn(`Local config saved, but failed to reach server for remote link sync: ${(err as Error).message}`);
