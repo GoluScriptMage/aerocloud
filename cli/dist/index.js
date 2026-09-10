@@ -212,7 +212,7 @@ program
         return;
     }
     Logger.header("Active Deployments");
-    const headers = ["SUBDOMAIN", "STATUS", "PORT", "MEMORY", "URL"];
+    const headers = ["SUBDOMAIN", "STATUS", "PORT", "CPU", "MEMORY", "URL"];
     const rows = deployments.map((dep) => {
         const subdomain = dep.subdomain || "unknown";
         let status = "unknown";
@@ -225,10 +225,21 @@ program
         else if (dep.containerStatus) {
             status = dep.containerStatus;
         }
+        const lowerStatus = status.toLowerCase();
+        if (lowerStatus === "running" || lowerStatus === "deployed") {
+            status = `● ${status}`;
+        }
+        else if (lowerStatus === "crashed" || lowerStatus === "failed" || lowerStatus === "error" || lowerStatus === "down" || lowerStatus === "exited") {
+            status = `○ ${status}`;
+        }
+        else if (lowerStatus === "stopped" || lowerStatus === "paused" || lowerStatus === "deploying") {
+            status = `◐ ${status}`;
+        }
         const port = dep.port ? String(dep.port) : "-";
         const memory = dep.memoryUsage && dep.memoryUsage !== "" ? dep.memoryUsage : "N/A";
+        const cpu = dep.cpuUsage && dep.cpuUsage !== "" && dep.cpuUsage !== "N/A" ? `${dep.cpuUsage}%` : "N/A";
         const url = `http://${subdomain}.localhost:8080`;
-        return [subdomain, status, port, memory, url];
+        return [subdomain, status, port, cpu, memory, url];
     });
     Logger.table(headers, rows);
 });

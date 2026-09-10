@@ -13,13 +13,15 @@ type DeploymentWithContainerInfo = {
     containerId: string | null;
     containerStatus?: string; // e.g., "running", "exited", "paused", etc.
     memoryUsage?: string; // e.g., "50MB", "200MB", etc.
+    cpuUsage?: string; // e.g., "50.00", "200.00", etc.
 }
+
 // Route to get all deployments
 export function listDeployments(app: express.Express) {
     app.get("/list", async (req, res) => {
         try {
             const user = (req as any).user;
-            
+
             // 1. Get all deployments from the database
             const deployments = getAllDeployments(user.githubId) as DeploymentWithContainerInfo[];
 
@@ -32,6 +34,7 @@ export function listDeployments(app: express.Express) {
                         port: dep.port,
                         status: dep.status,
                         createdAt: dep.createdAt,
+                        cpuUsage: "N/A",
                         containerStatus: "Down",
                         memoryUsage: "N/A"
                     }
@@ -52,9 +55,24 @@ export function listDeployments(app: express.Express) {
 
                         // 3a. If container is running, get memory usage
                         let memoryUsage: string = '';
+                        let cpuUsage: string = "0.00"; // Default CPU usage
                         if (liveStatus === "running") {
                             try {
                                 const stats = await container.stats({ stream: false })
+
+                                // CPU Stats 
+                                const cpuStats = stats.cpu_stats; // Container CPU
+                                const preCpuStats = stats.precpu_stats; // Previous CPU 
+
+                                const cpuDelta = cpuStats.cpu_usage.total_usage - preCpuStats.cpu_usage.total_usage;
+                                const systemCpuDelta = cpuStats.system_cpu_usage - preCpuStats.system_cpu_usage;
+                                const numberOfCpus = cpuStats.online_cpus || 1;
+
+                                // Calc Cpu Usage
+                                if (cpuDelta > 0 && systemCpuDelta > 0) {
+                                    cpuUsage = ((cpuDelta / systemCpuDelta) * numberOfCpus * 100).toFixed(2);
+                                }
+
                                 const usage = stats.memory_stats.usage;
                                 const limit = stats.memory_stats.limit;
                                 memoryUsage = (usage / (1024 * 1024)).toFixed(2) + 'MB'; // Memory usage in percentage
@@ -68,12 +86,14 @@ export function listDeployments(app: express.Express) {
                         return {
                             ...baseInfo,
                             containerStatus: liveStatus,
-                            memoryUsage: memoryUsage || "N/A"
+                            memoryUsage: memoryUsage || "N/A",
+                            cpuUsage: cpuUsage || "N/A"
                         }
 
                     } catch (error) {
                         return {
                             ...baseInfo,
+                            cpuUsage: "N/A",
                             containerId: dep.containerId,
                             containerStatus: "Error"
                         }

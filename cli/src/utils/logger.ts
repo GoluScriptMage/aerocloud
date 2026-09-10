@@ -184,13 +184,13 @@ export class Logger {
                 const colName = headers[i]?.toUpperCase();
                 if (colName === "STATUS") {
                     const lower = val.toLowerCase();
-                    if (lower === "running" || lower === "online" || lower === "active" || lower === "deployed") {
+                    if (lower.includes("running") || lower.includes("online") || lower.includes("active") || lower.includes("deployed")) {
                         return chalk.green(paddedVal);
                     }
-                    if (lower === "stopped" || lower === "paused" || lower === "deploying") {
+                    if (lower.includes("stopped") || lower.includes("paused") || lower.includes("deploying")) {
                         return chalk.yellow(paddedVal);
                     }
-                    if (lower === "failed" || lower === "error" || lower === "crashed" || lower === "down" || lower === "exited") {
+                    if (lower.includes("failed") || lower.includes("error") || lower.includes("crashed") || lower.includes("down") || lower.includes("exited")) {
                         return chalk.red(paddedVal);
                     }
                     return chalk.dim(paddedVal);
@@ -200,6 +200,12 @@ export class Logger {
                 }
                 if (colName === "SUBDOMAIN") {
                     return chalk.bold.white(paddedVal);
+                }
+                if (colName === "PORT" || colName === "CPU" || colName === "MEMORY") {
+                    if (val === "N/A" || val === "-" || val === "0.00%" || val === "0MB") {
+                        return chalk.dim(paddedVal);
+                    }
+                    return chalk.white(paddedVal);
                 }
                 return chalk.dim(paddedVal);
             }).join("   ");

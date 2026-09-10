@@ -1,4 +1,6 @@
 ✔ Implement env routes @done(26-08-26 16:13)
 ✔ Add them with cli @done(26-08-26 16:13)
     ✔ With sever @done(26-08-26 16:13)
-    ☐ Check the deploy and other routes
+    ✔ Check the deploy and other routes
+
+☐ Add a route that can restart a container give it's subdomain
