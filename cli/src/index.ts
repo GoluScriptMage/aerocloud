@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { Logger } from "./utils/logger.js";
+import { Logger, parseServerError } from "./utils/logger.js";
 import { createArchive } from "./utils/archieve.js";
 import fs from "node:fs";
 import chalk from "chalk";
@@ -12,287 +12,457 @@ import http from "node:http";
 import { exec } from "node:child_process";
 import { getToken, saveToken } from "./utils/authHelper.js";
 import { linkHelper } from "./utils/linkHelper.js";
-import prompts from "prompts";
 import { checkEnvFileExists, readEnvFile } from "./utils/envHelper.js";
 
 const program = new Command();
 
-// Define the "deploy" command
 program
     .name("aerocloud")
-    .description("Deploy your application to aerocloud");
+    .description("AeroCloud CLI - Deploy and manage cloud containers")
+    .version("1.0.0");
 
+// 1. init command
 program
     .command("init")
     .description("Initialize the aerocloud configuration file")
     .action(() => {
+        Logger.header("AeroCloud Init");
         initConfigFile();
     });
 
-// Define the "deploy" command
+// 2. deploy command
 program
     .command("deploy")
     .description("Deploy your application to aerocloud")
     .action(async () => {
-        Logger.info("Deploying your application to aerocloud...");
-        initConfigFile(); // Ensure the config file is initialized before deployment
+        Logger.header("Deploying to AeroCloud");
 
-        // 1. get output dir of zip file
-        const outputDirPath = await createArchive();
+        const auth = getToken(false);
+        const apiKey = auth?.apiKey;
+        if (!apiKey) {
+            Logger.error("Authentication required. Please run 'aerocloud auth' to authenticate.");
+            process.exit(1);
+        }
 
-        // 2. Get output file buffer
-        const outputFileBuffer = fs.readFileSync(outputDirPath);
+        initConfigFile(true); // Silent initialization if file already exists
 
-        // 3. Set the Blob
-        const fileBlob = new Blob([outputFileBuffer], { type: "application/zip" });
+        // 1. Create archive and measure timing
+        const archiveTimer = Logger.timer();
+        Logger.step("Packaging application source...");
+        let outputDirPath: string;
+        try {
+            outputDirPath = await createArchive();
+        } catch (err) {
+            Logger.error("Failed to package source archive", (err as Error).message);
+            process.exit(1);
+        }
+        Logger.step("Source archive packaged", archiveTimer());
+
         let customFileName: string = readConfigFile('name');
         if (!customFileName || customFileName.trim() === '') {
             customFileName = `app-${Math.random().toString(36).substring(2, 8)}`;
         }
 
         try {
-            sanitizeSubDomain(customFileName)
+            sanitizeSubDomain(customFileName);
         } catch (err) {
-            Logger.error((err as any).message);
+            Logger.error((err as Error).message);
+            try {
+                if (fs.existsSync(outputDirPath)) fs.unlinkSync(outputDirPath);
+            } catch {}
             process.exit(1);
         }
 
         // Update the config file with the sanitized subdomain
-        writeConfigFile({ ...readConfigFile(), name: customFileName }); // Update the config file with the sanitized subdomain
+        writeConfigFile({ ...readConfigFile(), name: customFileName });
 
-        // 3.1 Check for env file and append to formdata
+        // 2. Read output file buffer
+        const outputFileBuffer = fs.readFileSync(outputDirPath);
+        const fileBlob = new Blob([outputFileBuffer], { type: "application/zip" });
+
+        // 3. Environment variables
         const { exists, path: envFilePath } = checkEnvFileExists();
         if (!exists) {
-            Logger.warn("No .env file found. Proceeding without it.");
+            Logger.warn("No .env file found. Proceeding without environment variables.");
+        } else {
+            Logger.step("Loaded environment variables from .env");
         }
 
-        // 3.2 Create the env file blob if it exists
-        let envData = readEnvFile(envFilePath);
+        const envData = readEnvFile(envFilePath);
 
-        // 4. Create Formdata & append fileBlob
+        // 4. Create FormData
         const formData = new FormData();
         formData.append('file', fileBlob, 'test.zip');
         formData.append('name', customFileName);
         if (envData && envData.trim() !== '') {
             formData.append('envVars', envData);
         }
-        Logger.info("Sending deployment request to aerocloud server...");
 
-        const apiKey = (getToken(false) as any)?.apiKey; // Returns the full object, so we extract the apiKey
-        if (!apiKey) {
-            Logger.error("You must authenticate first. Please run 'aerocloud auth' to authenticate.");
-            return;
+        // Clean up temporary local archive zip
+        try {
+            if (fs.existsSync(outputDirPath)) {
+                fs.unlinkSync(outputDirPath);
+            }
+        } catch {}
+
+        const deployTimer = Logger.timer();
+        Logger.step(`Sending deployment request for '${customFileName}'...`);
+
+        // 5. Send POST request
+        let response: Response;
+        try {
+            response = await fetch("http://localhost:3000/deploy", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    authorization: `Bearer ${apiKey}`
+                }
+            });
+        } catch (err) {
+            Logger.error("Could not reach AeroCloud server", (err as Error).message);
+            process.exit(1);
         }
 
-        // 5. Send the file using fetch post
-        const response = await fetch("http://localhost:3000/deploy", {
-            method: 'POST',
-            body: formData,
-            headers: {
-                authorization: `Bearer ${apiKey}` // Include the API key in the Authorization header
-            }
-        });
+        if (!response.ok) {
+            const errorMsg = await parseServerError(response);
+            Logger.error("Deployment failed", errorMsg);
+            process.exit(1);
+        }
 
         if (!response.body) {
             Logger.error("No response stream received from server.");
-            return;
+            process.exit(1);
         }
 
-        // Convert Web ReadableStream (from native fetch) to Node.js Readable stream
+        // Convert Web ReadableStream to Node.js Readable stream
         const nodeStream = Readable.fromWeb(response.body as any);
         const rl = readline.createInterface({ input: nodeStream });
 
-        // Read the response line by line
+        let deploymentSucceeded = false;
+        let deploymentFailed = false;
+        let failureMessage = "";
+
         for await (const line of rl) {
             if (!line.trim()) continue;
             try {
                 const parsedLine = JSON.parse(line);
 
-                // Handle different types of messages from the server
                 if (parsedLine.type === "docker_build_output") {
                     process.stdout.write(parsedLine.message);
+                } else if (parsedLine.type === "step") {
+                    Logger.step(parsedLine.message);
                 } else if (parsedLine.type === "result") {
                     if (parsedLine.status === "success") {
-                        Logger.success(`Deployment successful! Subdomain: ${parsedLine.subDomain}, Image: ${parsedLine.imageName}`);
-                        Logger.info(`🌐 Live URL: http://${parsedLine.subDomain}.localhost:8080`);
+                        const elapsed = deployTimer();
+                        deploymentSucceeded = true;
+                        Logger.success(`Deployment successful! [subdomain: ${parsedLine.subDomain}]`, elapsed);
+                        console.log(`\n  ${chalk.cyan("🌐 Live URL:")} ${chalk.underline.bold(`http://${parsedLine.subDomain}.localhost:8080`)}\n`);
                     } else {
-                        Logger.error(`Deployment failed: ${parsedLine.message}`);
+                        deploymentFailed = true;
+                        failureMessage = parsedLine.message || parsedLine.error || "Deployment failed";
+                        Logger.error("Deployment failed", failureMessage);
                     }
+                } else if (parsedLine.error) {
+                    deploymentFailed = true;
+                    failureMessage = parsedLine.error;
+                    Logger.error("Deployment failed", failureMessage);
                 }
-            } catch (err) {
-                // Ignore parse errors on malformed lines
+            } catch {
+                // If stream emitted raw non-JSON text
+                process.stdout.write(line + "\n");
             }
+        }
+
+        if (deploymentFailed) {
+            process.exit(1);
+        }
+
+        if (!deploymentSucceeded) {
+            Logger.error("Deployment ended unexpectedly without a final success status.");
+            process.exit(1);
         }
     });
 
-// To list all deployments for the authenticated user
+// 3. list command
 program
     .command("list")
     .description("List all deployments")
     .action(async () => {
-
-        Logger.info("Fetching deployments list from aerocloud...");
-
-        const apiKey = (getToken(false) as any)?.apiKey;
+        const auth = getToken(false);
+        const apiKey = auth?.apiKey;
         if (!apiKey) {
-            Logger.error("You must authenticate first. Please run 'aerocloud auth' to authenticate.");
-            return;
+            Logger.error("Authentication required. Please run 'aerocloud auth' to authenticate.");
+            process.exit(1);
         }
 
-        const response = await fetch("http://localhost:3000/list", {
-            method: "GET",
-            headers: {
-                'Authorization': `Bearer ${apiKey}` // Include the API key in the Authorization header
-            }
-        });
+        Logger.step("Fetching deployments list from AeroCloud...");
+
+        let response: Response;
+        try {
+            response = await fetch("http://localhost:3000/list", {
+                method: "GET",
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            });
+        } catch (err) {
+            Logger.error("Could not reach AeroCloud server", (err as Error).message);
+            process.exit(1);
+        }
 
         if (!response.ok) {
-            Logger.error("Failed to fetch deployments list.");
+            const errorMsg = await parseServerError(response);
+            Logger.error("Failed to fetch deployments list", errorMsg);
+            process.exit(1);
+        }
+
+        let deployments: any[];
+        try {
+            deployments = await response.json();
+        } catch {
+            Logger.error("Invalid response format received from server.");
+            process.exit(1);
+        }
+
+        if (!Array.isArray(deployments) || deployments.length === 0) {
+            Logger.step("No deployments found.");
             return;
         }
 
-        const deployments = await response.json();
-        if (deployments.length === 0) {
-            Logger.info("No deployments found.");
-            return;
-        };
+        Logger.header("Active Deployments");
+        const headers = ["SUBDOMAIN", "STATUS", "PORT","CPU", "MEMORY", "URL"];
+        const rows = deployments.map((dep: any) => {
+            const subdomain = dep.subdomain || "unknown";
+            let status = "unknown";
+            if (dep.containerStatus && dep.containerStatus !== "Down" && dep.containerStatus !== "N/A") {
+                status = dep.containerStatus;
+            } else if (dep.status) {
+                status = dep.status;
+            } else if (dep.containerStatus) {
+                status = dep.containerStatus;
+            }
 
-        deployments.forEach((dep: any) => {
-            // Logs in JSON format for better readability and parsing
-            Logger.info("Deployments:\n" + JSON.stringify({
-                subdomain: dep.subdomain,
-                port: dep.port,
-                status: dep.status,
-                createdAt: dep.createdAt.toLocaleString("en-IN", {
-                    dateStyle: 'short',
-                    timeStyle: 'short'
-                }),
-                containerStatus: dep.containerStatus || "Unknown",
-                memoryUsage: dep.memoryUsage || "N/A"
+            const lowerStatus = status.toLowerCase();
+            if (lowerStatus === "running" || lowerStatus === "deployed") {
+                status = `● ${status}`;
+            } else if (lowerStatus === "crashed" || lowerStatus === "failed" || lowerStatus === "error" || lowerStatus === "down" || lowerStatus === "exited") {
+                status = `○ ${status}`;
+            } else if (lowerStatus === "stopped" || lowerStatus === "paused" || lowerStatus === "deploying") {
+                status = `◐ ${status}`;
+            }
 
-            }, null, 2))
-        })
+            const port = dep.port ? String(dep.port) : "-";
+            const memory = dep.memoryUsage && dep.memoryUsage !== "" ? dep.memoryUsage : "N/A";
+            const cpu = dep.cpuUsage && dep.cpuUsage !== "" && dep.cpuUsage !== "N/A" ? `${dep.cpuUsage}%` : "N/A";
+            const url = `http://${subdomain}.localhost:8080`;
+            return [subdomain, status, port, cpu, memory, url];
+        });
+
+        Logger.table(headers, rows);
     });
 
-// Stop the deployment by subdomain
+// 4. stop command
 program
     .command("stop <subdomain>")
     .description("Stop a deployment by subdomain")
     .action(async (subdomain: string) => {
-        Logger.info(`Stopping deployment for subdomain: ${subdomain}...`);
-
-        const response = await fetch(`http://localhost:3000/stop${subdomain}`, {
-            method: "GET",
-            headers: {
-                'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
-            }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            Logger.error(`Failed to stop deployment: ${errorData.error}`);
-            return;
+        const auth = getToken(false);
+        const apiKey = auth?.apiKey;
+        if (!apiKey) {
+            Logger.error("Authentication required. Please run 'aerocloud auth' to authenticate.");
+            process.exit(1);
         }
 
-        const data = await response.json();
-        Logger.success(data.message);
-    })
+        if (!subdomain || !subdomain.trim()) {
+            Logger.error("Subdomain is required.");
+            process.exit(1);
+        }
 
-// Destroy the deployment by subdomain 
+        Logger.step(`Stopping deployment '${subdomain}'...`);
+
+        let response: Response;
+        try {
+            response = await fetch(`http://localhost:3000/stop/${subdomain}`, {
+                method: "GET",
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            });
+        } catch (err) {
+            Logger.error(`Failed to reach server to stop '${subdomain}'`, (err as Error).message);
+            process.exit(1);
+        }
+
+        if (!response.ok) {
+            const errorMsg = await parseServerError(response);
+            Logger.error(`Failed to stop deployment '${subdomain}'`, errorMsg);
+            process.exit(1);
+        }
+
+        const data = await response.json().catch(() => ({}));
+        if (data.error) {
+            Logger.error(`Failed to stop deployment '${subdomain}'`, data.error);
+            process.exit(1);
+        }
+        Logger.success(data.message || `Deployment '${subdomain}' stopped successfully.`);
+    });
+
+// 5. destroy command
 program
     .command("destroy <subdomain>")
     .description("Destroy a deployment by subdomain")
     .action(async (subdomain: string) => {
-        Logger.info(`Destroying deployment for subdomain: ${subdomain}...`);
-
-        const response = await fetch(`http://localhost:3000/destroy/${subdomain}`, {
-            method: "GET",
-            headers: {
-                'Authorization': `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
-            }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            Logger.error(`Failed to destroy deployment: ${errorData.error}`);
-            return;
+        const auth = getToken(false);
+        const apiKey = auth?.apiKey;
+        if (!apiKey) {
+            Logger.error("Authentication required. Please run 'aerocloud auth' to authenticate.");
+            process.exit(1);
         }
 
-        const data = await response.json();
-        Logger.success(data.message);
-    })
+        if (!subdomain || !subdomain.trim()) {
+            Logger.error("Subdomain is required.");
+            process.exit(1);
+        }
 
+        Logger.step(`Destroying deployment '${subdomain}'...`);
 
-// Fetch logs for a deployment by subdomain
-// follow the logs in real-time if the container is running
+        let response: Response;
+        try {
+            response = await fetch(`http://localhost:3000/destroy/${subdomain}`, {
+                method: "GET",
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            });
+        } catch (err) {
+            Logger.error(`Failed to reach server to destroy '${subdomain}'`, (err as Error).message);
+            process.exit(1);
+        }
+
+        if (!response.ok) {
+            const errorMsg = await parseServerError(response);
+            Logger.error(`Failed to destroy deployment '${subdomain}'`, errorMsg);
+            process.exit(1);
+        }
+
+        const data = await response.json().catch(() => ({}));
+        if (data.error) {
+            Logger.error(`Failed to destroy deployment '${subdomain}'`, data.error);
+            process.exit(1);
+        }
+        Logger.success(data.message || `Deployment '${subdomain}' destroyed successfully.`);
+    });
+
+// 6. logs command
 program
     .command("logs <subdomain>")
     .option("-f, --follow", "Follow logs in real-time if the container is running")
     .description("Fetch logs for a deployment by subdomain")
     .action(async (subdomain: string, options) => {
+        const auth = getToken(false);
+        const apiKey = auth?.apiKey;
+        if (!apiKey) {
+            Logger.error("Authentication required. Please run 'aerocloud auth' to authenticate.");
+            process.exit(1);
+        }
 
-        // Check if the --follow option is set
+        if (!subdomain || !subdomain.trim()) {
+            Logger.error("Subdomain is required.");
+            process.exit(1);
+        }
+
         if (!options.follow) {
-            Logger.info("Fetching logs in real-time for subdomain: " + subdomain);
-            const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs`, {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
-                }
-            });
+            Logger.step(`Fetching logs for deployment '${subdomain}'...`);
+            let response: Response;
+            try {
+                response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs`, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${apiKey}`
+                    }
+                });
+            } catch (err) {
+                Logger.error(`Could not reach server to fetch logs for '${subdomain}'`, (err as Error).message);
+                process.exit(1);
+            }
 
             if (!response.ok) {
-                const errorData = await response.json();
-                Logger.error(`Failed to fetch logs: ${errorData.message}`);
+                const errorMsg = await parseServerError(response);
+                Logger.error(`Failed to fetch logs for '${subdomain}'`, errorMsg);
+                process.exit(1);
+            }
+
+            const data = await response.json().catch(() => ({ logs: "" }));
+            const logContent = typeof data === "string" ? data : (data.logs || data.message || "");
+            const logArray = logContent.split('\n').filter((line: string) => line.trim() !== '');
+
+            if (logArray.length === 0) {
+                Logger.step(`No logs available for '${subdomain}'.`);
                 return;
             }
 
-            // Stream the logs in real-time
-            const logs = await response.json();
-            const logArray = logs.logs.split('\n').filter((line: string) => line.trim() !== '');
-            Logger.log(`Logs for deployment ${subdomain}:`);
-            logArray.forEach((log: string) => Logger.log(`${log}`));
+            Logger.header(`Logs: ${subdomain}`);
+            logArray.forEach((log: string) => console.log(`  ${chalk.dim("│")} ${log}`));
             return;
         }
 
-        // If the --follow option is not set, fetch the last 100 lines of logs
-        const response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs?follow=true`, {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${(getToken(false) as any).apiKey}` // Include the API key in the Authorization header
-            }
-        })
+        // Follow mode
+        Logger.step(`Connecting to live log stream for '${subdomain}'...`);
+        let response: Response;
+        try {
+            response = await fetch(`http://localhost:3000/deployments/${subdomain}/logs?follow=true`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`
+                }
+            });
+        } catch (err) {
+            Logger.error(`Could not reach server to stream logs for '${subdomain}'`, (err as Error).message);
+            process.exit(1);
+        }
 
+        if (!response.ok) {
+            const errorMsg = await parseServerError(response);
+            Logger.error(`Failed to stream logs for '${subdomain}'`, errorMsg);
+            process.exit(1);
+        }
+
+        if (!response.body) {
+            Logger.error("No response stream received from server.");
+            process.exit(1);
+        }
+
+        Logger.header(`Live Logs: ${subdomain} (Press Ctrl+C to exit)`);
         const nodeStream = Readable.fromWeb(response.body as any);
         const rl = readline.createInterface({ input: nodeStream });
 
-        // Read the response line by line
-        Logger.info(`Streaming logs for deployment ${subdomain} (Press Ctrl+C to stop):`);
         for await (const line of rl) {
             if (!line.trim()) continue;
-            Logger.log(line);
+            console.log(`  ${chalk.dim("│")} ${line}`);
         }
+    });
 
-    })
-
-// For auth
+// 7. auth command
 program
     .command("auth")
+    .option("-f, --force", "Force re-authentication with GitHub")
     .description("Authenticate with GitHub")
-    .action(async () => {
-        Logger.info("Authenticating with GitHub...");
+    .action(async (options: { force?: boolean }) => {
+        Logger.header("AeroCloud GitHub Authentication");
 
+        const existingToken = getToken(false);
+        const authTimestamp = existingToken?.authenticatedAt || existingToken?.authenciatedAt || 0;
+        const hoursSinceAuth = (Date.now() - authTimestamp) / (1000 * 60 * 60);
 
-        // Check if the token already exists in the config file
-        const existingToken = getToken(false) as any;
-        const hoursSinceAuth = (Date.now() - (existingToken?.authenciatedAt || 0)) / (1000 * 60 * 60); // Hours 
-        if (existingToken && hoursSinceAuth < 8) {
-            Logger.success("You are already authenticated with GitHub.");
-            Logger.info(`Username: ${existingToken.username}`);
+        if (!options.force && existingToken?.apiKey && hoursSinceAuth < 8) {
+            Logger.success("Already authenticated with GitHub.");
+            if (existingToken.username) {
+                Logger.step(`Logged in as: ${chalk.bold(existingToken.username)}`);
+            }
+            Logger.step(`Run ${chalk.cyan("aerocloud auth --force")} to re-authenticate.`);
             return;
         }
 
-        // Step 1: Start a local server to listen for the callback
         const server = http.createServer((req, res) => {
             const url = new URL(req.url || "", `http://${req.headers.host}`);
 
@@ -301,34 +471,52 @@ program
                 const apiKey = url.searchParams.get("apiKey") || null;
                 const username = url.searchParams.get("username") || null;
 
-                if (token) {
-                    const authenciatedAt = Date.now();
-                    saveToken(token, username!, apiKey!, authenciatedAt); // Save to the config file
+                if (token && apiKey) {
+                    const authenticatedAt = Date.now();
+                    saveToken(token, username || undefined, apiKey, authenticatedAt);
                     res.writeHead(200, { "Content-Type": "text/html" });
                     res.end("<h1>Authentication successful! You can close this window.</h1>");
-                    Logger.success("Authentication successful! Token and API Key saved.");
+                    Logger.success("Authentication successful! Session credentials saved.");
 
-                    // Shut down CLI server cleanly 
                     server.close();
                     process.exit(0);
+                } else {
+                    res.writeHead(400, { "Content-Type": "text/html" });
+                    res.end("<h1>Authentication failed: missing credentials</h1>");
+                    Logger.error("Authentication failed: invalid callback parameters.");
+                    server.close();
+                    process.exit(1);
                 }
             }
-        })
+        });
 
-        // Step 2: Open the GitHub OAuth URL in the user's default browser
-        exec(`open http://localhost:3000/auth/github?port=3001`)
-        Logger.info("Please complete the authentication in your browser. Waiting for callback...");
-        server.listen(3001)
+        server.on("error", (err: any) => {
+            Logger.error("Failed to start local auth callback server", err.message);
+            process.exit(1);
+        });
 
-    })
+        server.listen(3001, () => {
+            Logger.step("Opening browser for GitHub authentication...");
+            exec(`open http://localhost:3000/auth/github?port=3001`, (err) => {
+                if (err) {
+                    Logger.warn("Could not open browser automatically. Please visit: http://localhost:3000/auth/github?port=3001");
+                }
+            });
+            Logger.step("Waiting for authentication callback on port 3001...");
+        });
+    });
 
-// For linking the repo of user 
+// 8. link command
 program
     .command("link")
     .description("Link your GitHub repository to aerocloud")
     .action(async () => {
+        const auth = getToken(false);
+        if (!auth?.apiKey) {
+            Logger.error("Authentication required. Please run 'aerocloud auth' to authenticate.");
+            process.exit(1);
+        }
         await linkHelper();
     });
 
-// Parse the command-line arguments
 program.parse(process.argv);

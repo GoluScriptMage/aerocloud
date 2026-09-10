@@ -5,36 +5,31 @@ import { execSync } from "node:child_process";
 import { Logger } from "./logger.js";
 import { getToken } from "./authHelper.js";
 import { initConfigFile, readConfigFile, writeConfigFile } from "./configHelper.js";
-
-function getLocalGitRepo(): { fullName: string, name: string } | null {
+function getLocalGitRepo() {
     try {
         const remoteUrl = execSync("git config --get remote.origin.url", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
         const match = remoteUrl.match(/github\.com[:/](.+?)(?:\.git)?$/);
-        if (!match) return null;
+        if (!match)
+            return null;
         const fullName = match[1];
         const name = fullName.split("/")[1] || fullName;
         Logger.debug(`Detected local Git repository: ${fullName}: ${name}`);
-        
         return { fullName, name };
-    } catch {
+    }
+    catch {
         return null;
     }
 }
-
 export async function linkHelper() {
     Logger.header("AeroCloud Project Link");
-
     // Step 1: Get the token from the config file
     const accessToken = getToken(true); // Returns only the token string
     const apiKey = getToken(false)?.apiKey; // Returns the full object, so we extract the apiKey
-
     if (!accessToken || !apiKey) {
         Logger.error("Authentication required. Please run 'aerocloud auth' to authenticate.");
         process.exit(1);
     }
-
     Logger.step("Fetching GitHub repositories and linked projects...");
-
     // Step 2: Fetch the user's GitHub repositories using the GitHub API & linked projects lists from db
     const githubResponse = fetch("https://api.github.com/user/repos?sort=pushed&direction=desc&per_page=30", {
         method: "GET",
@@ -44,16 +39,13 @@ export async function linkHelper() {
             "User-Agent": "AeroCloud-CLI"
         }
     });
-
     const aerocloudResponse = fetch("http://localhost:3000/projects", {
         method: "GET",
         headers: {
             Authorization: `Bearer ${apiKey}`
         }
     });
-
     const [githubRepos, aerocloudProjects] = await Promise.all([githubResponse, aerocloudResponse]);
-
     if (!githubRepos.ok) {
         const errMsg = await Logger.parseServerError(githubRepos);
         Logger.error("Failed to fetch GitHub repositories", errMsg);
@@ -64,17 +56,13 @@ export async function linkHelper() {
         Logger.error("Failed to fetch linked projects from AeroCloud", errMsg);
         process.exit(1);
     }
-
     const githubReposData = await githubRepos.json();
     const aerocloudProjectsData = await aerocloudProjects.json();
-
     // Step 3: Create a Set of linked repo full names for quick lookup & format choices
-    const linkedRepoFullName = new Set(aerocloudProjectsData.map((project: any) => project.repoFullName));
-    const validRepos = githubReposData.filter((repo: any) => !repo.fork);
-    const maxNameLen = Math.max(...validRepos.map((r: any) => r.name.length), 20);
-
-    let selected: any = null;
-
+    const linkedRepoFullName = new Set(aerocloudProjectsData.map((project) => project.repoFullName));
+    const validRepos = githubReposData.filter((repo) => !repo.fork);
+    const maxNameLen = Math.max(...validRepos.map((r) => r.name.length), 20);
+    let selected = null;
     // Step 3.1: Check if local directory has a Git remote origin configured
     const localGit = getLocalGitRepo();
     if (localGit) {
@@ -83,40 +71,32 @@ export async function linkHelper() {
             Logger.info(`This repository ${chalk.bold.green(localGit.fullName)} is already linked to AeroCloud!`);
             return;
         }
-
         const autoLinkPrompt = await prompts({
             type: "confirm",
             name: "linkDetected",
             message: `Detected Git remote ${chalk.bold.cyan(localGit.fullName)}. Link to this repository?`,
             initial: true
         });
-
         if (autoLinkPrompt.linkDetected) {
-            const matchedRepo = validRepos.find((r: any) => r.full_name.toLowerCase() === localGit.fullName.toLowerCase());
+            const matchedRepo = validRepos.find((r) => r.full_name.toLowerCase() === localGit.fullName.toLowerCase());
             selected = {
                 name: localGit.name,
                 fullName: localGit.fullName,
                 branch: matchedRepo?.default_branch || "main"
             };
-            
         }
     }
-
     if (!selected) {
-        const reposData = validRepos.map((repo: any) => {
+        const reposData = validRepos.map((repo) => {
             const isLinked = linkedRepoFullName.has(repo.full_name);
             const branchName = repo.default_branch || 'main';
-
             const nameStyled = isLinked
                 ? chalk.dim.strikethrough(repo.name)
                 : chalk.white.bold(repo.name);
-
             const paddedName = nameStyled + ' '.repeat(Math.max(1, (maxNameLen + 4) - repo.name.length));
-
             const branchStyled = isLinked
                 ? chalk.dim(`${branchName}  (linked)`)
                 : chalk.dim(branchName) + (repo.private ? chalk.yellow('  🔒 private') : '');
-
             return {
                 title: `${paddedName} ${branchStyled}`,
                 value: {
@@ -128,14 +108,12 @@ export async function linkHelper() {
                 disabled: isLinked
             };
         });
-
         console.log();
         console.log(chalk.gray("┌─────────────────────────────────────────────────────────────┐"));
         console.log(chalk.gray("│") + chalk.bold.cyan("  AeroCloud ") + chalk.dim("› Link Repository                                ") + chalk.gray("│"));
         console.log(chalk.gray("│") + chalk.dim("  Select a GitHub repository to deploy with this folder      ") + chalk.gray("│"));
         console.log(chalk.gray("└─────────────────────────────────────────────────────────────┘"));
         console.log();
-
         // Step 4: Feed the repos to prompts for user selection
         const response = await prompts({
             type: 'autocomplete',
@@ -143,32 +121,26 @@ export async function linkHelper() {
             message: 'Search repository:',
             choices: reposData,
             limit: 10,
-            suggest: (input, choices) =>
-                Promise.resolve(choices.filter(choice => choice.value.name.toLowerCase().includes(input.toLowerCase())))
+            suggest: (input, choices) => Promise.resolve(choices.filter(choice => choice.value.name.toLowerCase().includes(input.toLowerCase())))
         });
-
         // Step 4.1: Handle the case where user cancels
         if (!response.selectedRepo) {
             Logger.warn("Repository linking cancelled.");
             return;
         }
-
         selected = response.selectedRepo;
     }
-
     // Step 5: Update local aerocloud.json
     initConfigFile(true);
     const currentConfig = readConfigFile() || {};
     const cwdName = path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '') || 'app';
     const projectName = currentConfig.name && currentConfig.name.trim() !== '' ? currentConfig.name : cwdName;
-
     writeConfigFile({
         ...currentConfig,
         name: projectName,
         repo: selected.fullName,
         branch: selected.branch
     });
-
     // Step 6: Sync link with AeroCloud Server Database
     try {
         const serverLinkResponse = await fetch("http://localhost:3000/projects/link", {
@@ -183,15 +155,16 @@ export async function linkHelper() {
                 branch: selected.branch
             })
         });
-
         if (serverLinkResponse.ok) {
             Logger.success(`Successfully linked directory to ${chalk.green.bold(selected.fullName)} (${chalk.cyan(selected.branch)})!`);
             Logger.step(`Local configuration saved to ${chalk.bold('aerocloud.json')}`);
-        } else {
+        }
+        else {
             const errMsg = await Logger.parseServerError(serverLinkResponse);
             Logger.warn(`Local config saved, but server sync reported: ${errMsg}`);
         }
-    } catch (err) {
-        Logger.warn(`Local config saved, but failed to reach server for remote link sync: ${(err as Error).message}`);
+    }
+    catch (err) {
+        Logger.warn(`Local config saved, but failed to reach server for remote link sync: ${err.message}`);
     }
 }
