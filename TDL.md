@@ -40,4 +40,5 @@ Day 20 - Finsihed the 4.5 & implemented CPU usage and other stuff
 
 ## Level 5- Production Grade features sprint 
 
-Day 21 - 
+Day 21 - Started the daeomon server half finsihed 
+Day 22 - Finsihed the daeomon server just connecting is left
