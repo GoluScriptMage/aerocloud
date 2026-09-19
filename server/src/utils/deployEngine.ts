@@ -10,6 +10,7 @@ import { getSubDomain, saveDeployment, updateDeployment } from "../config/db.js"
 import { Logger } from "./logger.js";
 import { sanitizeSubDomain } from "./security.js";
 import { rollbackDeployment } from "../routes/deploy.js";
+import { leasePort, releasePort } from "./daemonClient.js";
 
 export interface DeployFromGitOptions {
     subDomain: string;
@@ -92,7 +93,7 @@ export async function deployFromGitTarball(
     const imageName = `aerocloud/${subDomain}:latest`;
 
     // 5. Pre-allocate an available port for zero-downtime swap
-    const dockerPort = await findAvailablePort();
+    const dockerPort = await leasePort();
     const existing = getSubDomain(subDomain);
     if (!existing) {
         saveDeployment(subDomain, dockerPort, "deploying", envVars || "{}", userId);
@@ -168,6 +169,8 @@ export async function deployFromGitTarball(
 
             Logger.error(`[DeployEngine] Container failed to start for ${subDomain}. Rolling back deployment.`);
             rollbackDeployment(targetDir, subDomain, userId);
+
+            await releasePort(dockerPort);
             throw new Error(`Container crashed on boot:\n${crashOutput}`);
         }
 
@@ -194,6 +197,7 @@ export async function deployFromGitTarball(
         };
     } catch (containerErr) {
         Logger.error(`[DeployEngine] Container startup failed: ${(containerErr as Error).message}`);
+        await releasePort(dockerPort);
         rollbackDeployment(targetDir, subDomain, userId);
         throw containerErr;
     }

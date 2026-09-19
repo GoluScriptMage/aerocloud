@@ -14,6 +14,7 @@ import { findAvailablePort } from "../utils/goPortFinder.js";
 import { Logger } from "../utils/logger.js";
 import { checkZipForSecurity, sanitizeSubDomain } from "../utils/security.js";
 import { deployRateLimiter } from "../utils/rateLimiter.js";
+import { leasePort, releasePort } from "../utils/daemonClient.js";
 
 export function rollbackDeployment(targetDir: string, subDomain: string, userId: string) {
 
@@ -39,6 +40,7 @@ export function deployRoutes(app: express.Express) {
     // 2. Define a route to handle file uploads
     app.post("/deploy", deployRateLimiter, upload.single("file"), async (req, res) => {
         let targetDir = '';
+        let dockerPort: number = 0; // Initialize dockerPort here to ensure it's defined in the catch block
 
         try {
             const user = (req as any).user;
@@ -46,7 +48,7 @@ export function deployRoutes(app: express.Express) {
             // Check if a file exists
             const file = (req as any).file;
             const envVars = req.body.envVars; // Get envVars from the request body
-            Logger.debug(`Received deployment request from user: ${user?.githubId}, subdomain: ${req.body.name}, envVars: ${envVars}`);
+
 
             if (!file) {
                 return res.status(400).send("No file uploaded.");
@@ -88,7 +90,6 @@ export function deployRoutes(app: express.Express) {
 
             // 3.1 Check for .env file 
             const parsedEnv = envVars && JSON.stringify(dotenv.parse(envVars));
-            Logger.debug(`Parsed environment variables: ${parsedEnv}: ${envVars}`);
 
             // 4. Save deployment in db with status "deploying" 
             // Save the env vars 
@@ -112,7 +113,7 @@ export function deployRoutes(app: express.Express) {
                 res.setHeader("Transfer-Encoding", "chunked");
 
                 // Get the port and claim it for the deployment to avoid race conditions
-                const dockerPort = await findAvailablePort();
+                dockerPort = await leasePort();
                 updateDeployment(subDomain, "deploying", "", dockerPort, "", user?.githubId);
 
                 // Build docker image
@@ -120,6 +121,7 @@ export function deployRoutes(app: express.Express) {
                     if (err || !stream) {
                         const errorMsg = err ? err.message : "Docker build stream is null.";
                         Logger.error(`Docker build initiation failed: ${errorMsg}`);
+                        await releasePort(dockerPort);
                         res.status(500).write(JSON.stringify({
                             type: "result",
                             status: "failed",
@@ -134,6 +136,7 @@ export function deployRoutes(app: express.Express) {
                         // Check if the build process finished with an error
                         if (onFinished) {
                             Logger.error('Docker image build failed');
+                            await releasePort(dockerPort);
                             res.status(500).write(JSON.stringify({
                                 type: "result",
                                 status: "failed",
@@ -213,9 +216,9 @@ export function deployRoutes(app: express.Express) {
                             }) + "\n");
                             res.end();
                             return;
-
                         } catch (containerErr) {
                             Logger.error(`Container creation/start failed: ${containerErr}`);
+                            await releasePort(dockerPort);
                             rollbackDeployment(targetDir, subDomain, user?.githubId);
                             // If headers have not been sent yet, send a 500 response. Otherwise, just write the error message and end the response.
                             if (!res.headersSent) {
@@ -248,6 +251,7 @@ export function deployRoutes(app: express.Express) {
 
         } catch (error) {
             Logger.error(`Deployment failed: ${(error as Error).message}`);
+            await releasePort(dockerPort);
             rollbackDeployment(targetDir, req.body.name, (req as any).user?.githubId);
             return res.status(500).json({ type: "result", status: "failed", message: `Deployment failed: ${(error as Error).message}` });
         }
