@@ -60,6 +60,7 @@ func lease() int {
 	return -1
 }
 
+// ex. `RELEASE 4001`
 func release(port int) {
 	offSet := port - 4000
 
