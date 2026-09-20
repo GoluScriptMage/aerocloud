@@ -15,6 +15,7 @@ import { Logger } from "../utils/logger.js";
 import { checkZipForSecurity, sanitizeSubDomain } from "../utils/security.js";
 import { deployRateLimiter } from "../utils/rateLimiter.js";
 import { leasePort, releasePort } from "../utils/daemonClient.js";
+import { getExposedPort } from "../utils/helper.js";
 
 export function rollbackDeployment(targetDir: string, subDomain: string, userId: string) {
 
@@ -155,13 +156,16 @@ export function deployRoutes(app: express.Express) {
                             // 5.2 Modify the env vars to be in the format expected by Docker
                             const modifiedEnvVars = envVars ? Object.entries(JSON.parse(envVars.envVars || "{}")).map(([key, value]) => `${key}=${value}`).join('\n') : undefined;
                             const containerName = `${subDomain}-${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
-                            const portBindings = { "3000/tcp": [{ HostPort: dockerPort.toString() }] };
+
+                            const exposedPorts = `${4000 | getExposedPort(targetDir)}/tcp`; // Port that is exposed inside the container (running server port)
+                            Logger.debug(`Exposed ports for container: ${exposedPorts}`);
+                            const portBindings = { [exposedPorts]: [{ HostPort: dockerPort.toString() }] }; // Binding of host port -> running server port 
 
                             const container = await docker.createContainer({
                                 Image: imageName,
                                 name: containerName,
                                 Env: modifiedEnvVars ? modifiedEnvVars.split('\n') : undefined, // insersts the env vars into the container
-                                ExposedPorts: { "3000/tcp": {} },
+                                ExposedPorts: { [exposedPorts]: {} },
                                 HostConfig: {
                                     Memory: 512 * 1024 * 1024, // 512MB
                                     MemorySwap: 1024 * 1024 * 1024, // 1GB (disk swap + memory)
@@ -170,8 +174,8 @@ export function deployRoutes(app: express.Express) {
                                 }
                             });
 
-                            Logger.info(`Container started successfully for deployment: ${subDomain} on port ${dockerPort}`);
                             await container.start();
+                            Logger.info(`Container started successfully for deployment: ${subDomain} on port ${dockerPort}`);
 
                             /**
                              * Important FALLBACK: IF container crashed after starting, rollback the deployment for the user

@@ -198,6 +198,7 @@ export async function deployFromGitTarball(
     } catch (containerErr) {
         Logger.error(`[DeployEngine] Container startup failed: ${(containerErr as Error).message}`);
         await releasePort(dockerPort);
+        
         rollbackDeployment(targetDir, subDomain, userId);
         throw containerErr;
     }
