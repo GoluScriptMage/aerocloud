@@ -157,7 +157,7 @@ export function deployRoutes(app: express.Express) {
                             const modifiedEnvVars = envVars ? Object.entries(JSON.parse(envVars.envVars || "{}")).map(([key, value]) => `${key}=${value}`).join('\n') : undefined;
                             const containerName = `${subDomain}-${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
 
-                            const exposedPorts = `${4000 | getExposedPort(targetDir)}/tcp`; // Port that is exposed inside the container (running server port)
+                            const exposedPorts = `${getExposedPort(targetDir)}/tcp`; // Port that is exposed inside the container (running server port)
                             Logger.debug(`Exposed ports for container: ${exposedPorts}`);
                             const portBindings = { [exposedPorts]: [{ HostPort: dockerPort.toString() }] }; // Binding of host port -> running server port 
 
