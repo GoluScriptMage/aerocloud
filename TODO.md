@@ -41,3 +41,12 @@ Mark `[x]` as you test and verify each pipeline end-to-end.
 - [ ] **HMAC Signature Check**: Webhook rejects fake or altered signatures with `401 Unauthorized`.
 - [ ] **SizeGuard (< 50MB)**: Stream aborts and rolls back if archive exceeds 50MB.
 - [ ] **Rollback on Error**: If Docker build or start fails, server cleans up temp files and frees allocated port.
+
+
+
+
+## Latest wanted things
+[] - del all projects 
+[] - Imporove logging in the server side  
+[] - Add testing so the server shouldn't start without checking the linux VMs & also port finder socket 
+[] - Find the problem when the deploying fails from the other side except the server (deploy) but from unix socket or docker

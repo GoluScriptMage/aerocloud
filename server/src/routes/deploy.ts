@@ -97,7 +97,6 @@ export function deployRoutes(app: express.Express) {
             saveDeployment(subDomain, 0, "deploying", parsedEnv || "", user?.githubId);
 
             if (fs.existsSync(path.join(targetDir, 'package.json'))) {
-
                 ensureDockerFile(targetDir);
 
                 const tarStream = tar.c(
