@@ -44,9 +44,9 @@ Mark `[x]` as you test and verify each pipeline end-to-end.
 
 
 
-
 ## Latest wanted things
 [] - del all projects 
 [] - Imporove logging in the server side  
 [] - Add testing so the server shouldn't start without checking the linux VMs & also port finder socket 
 [] - Find the problem when the deploying fails from the other side except the server (deploy) but from unix socket or docker
+[] - Add testing layers and finish them 

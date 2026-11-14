@@ -15,7 +15,7 @@ import { Logger } from "../utils/logger.js";
 import { checkZipForSecurity, sanitizeSubDomain } from "../utils/security.js";
 import { deployRateLimiter } from "../utils/rateLimiter.js";
 import { leasePort, releasePort } from "../utils/daemonClient.js";
-import { getExposedPort } from "../utils/helper.js";
+import { getExposedPort, normalizeEnv } from "../utils/helper.js";
 
 export function rollbackDeployment(targetDir: string, subDomain: string, userId: string) {
 
@@ -48,8 +48,7 @@ export function deployRoutes(app: express.Express) {
 
             // Check if a file exists
             const file = (req as any).file;
-            const envVars = req.body.envVars; // Get envVars from the request body
-
+            const envVars = (req as any).body.envVars; // Get envVars from the request body
 
             if (!file) {
                 return res.status(400).send("No file uploaded.");
@@ -90,8 +89,7 @@ export function deployRoutes(app: express.Express) {
             zip.extractAllTo(targetDir, true);
 
             // 3.1 Check for .env file 
-            const parsedEnv = envVars && JSON.stringify(dotenv.parse(envVars));
-
+            const parsedEnv = normalizeEnv(envVars);
             // 4. Save deployment in db with status "deploying" 
             // Save the env vars 
             saveDeployment(subDomain, 0, "deploying", parsedEnv || "", user?.githubId);
@@ -153,7 +151,6 @@ export function deployRoutes(app: express.Express) {
                             const envVars = await getDeployment(subDomain, user?.githubId) as { envVars?: string } | undefined;
 
                             // 5.2 Modify the env vars to be in the format expected by Docker
-                            const modifiedEnvVars = envVars ? Object.entries(JSON.parse(envVars.envVars || "{}")).map(([key, value]) => `${key}=${value}`).join('\n') : undefined;
                             const containerName = `${subDomain}-${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
 
                             const exposedPorts = `${getExposedPort(targetDir)}/tcp`; // Port that is exposed inside the container (running server port)
@@ -163,7 +160,7 @@ export function deployRoutes(app: express.Express) {
                             const container = await docker.createContainer({
                                 Image: imageName,
                                 name: containerName,
-                                Env: modifiedEnvVars ? modifiedEnvVars.split('\n') : undefined, // insersts the env vars into the container
+                                Env: formatEnvForDocker(envVars?.envVars), // insersts the env vars into the container
                                 ExposedPorts: { [exposedPorts]: {} },
                                 HostConfig: {
                                     Memory: 512 * 1024 * 1024, // 512MB

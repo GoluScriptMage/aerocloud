@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { Logger } from "./logger.js";
+import dotenv from "dotenv";
 
 
 // Function to get the exposed port of a deployment 
@@ -32,4 +33,27 @@ export function getExposedPort(targetDir: string): number {
     }
 
     return 4000; // Default port if none specified
+}
+
+// Convert raw to JSON string
+export function normalizeEnv(rawEnv?: string): string {
+    if (!rawEnv || rawEnv.trim() === '') return '{}';
+    try {
+        JSON.parse(rawEnv);
+        return rawEnv;
+    } catch (err) {
+        return JSON.stringify(dotenv.parse(rawEnv))
+    }
+}
+
+// Converts JSON string to DOcker format array of strings
+export function formatEnvForDocker(envJson?: string): string[] | undefined {
+    if (!envJson || envJson === '{}') return undefined;
+    try {
+        const obj = JSON.parse(envJson);
+        const entries = Object.entries(obj).map(([k, v]) => `${k}=${v}`);
+        return entries.length > 0 ? entries : undefined;
+    } catch {
+        return undefined;
+    }
 }

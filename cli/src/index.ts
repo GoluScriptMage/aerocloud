@@ -82,6 +82,7 @@ program
 
         // 3. Environment variables
         const { exists, path: envFilePath } = checkEnvFileExists();
+        Logger.info(`Checking for .env file at ${envFilePath}: ${exists ? "Found" : "Not Found"}`);
         if (!exists) {
             Logger.warn("No .env file found. Proceeding without environment variables.");
         } else {
@@ -89,14 +90,16 @@ program
         }
 
         const envData = readEnvFile(envFilePath);
+        Logger.info(`Environment variables to be sent: ${envData ? envData : "No env vars provided"}`);
 
         // 4. Create FormData
         const formData = new FormData();
-        formData.append('file', fileBlob, 'test.zip');
-        formData.append('name', customFileName);
         if (envData && envData.trim() !== '') {
             formData.append('envVars', envData);
+            Logger.info(`Appended env vars to FormData: ${envData}`);
         }
+        formData.append('file', fileBlob, 'test.zip');
+        formData.append('name', customFileName);
 
         // Clean up temporary local archive zip
         try {
