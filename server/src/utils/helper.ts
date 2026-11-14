@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs";
 import { Logger } from "./logger.js";
 import dotenv from "dotenv";
+import { encryptAccessToken } from "./security.js";
 
 
 // Function to get the exposed port of a deployment 
@@ -40,9 +41,9 @@ export function normalizeEnv(rawEnv?: string): string {
     if (!rawEnv || rawEnv.trim() === '') return '{}';
     try {
         JSON.parse(rawEnv);
-        return rawEnv;
+        return encryptAccessToken(rawEnv);
     } catch (err) {
-        return JSON.stringify(dotenv.parse(rawEnv))
+        return encryptAccessToken(JSON.stringify(dotenv.parse(rawEnv)))
     }
 }
 

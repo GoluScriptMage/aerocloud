@@ -15,7 +15,8 @@ import { Logger } from "../utils/logger.js";
 import { checkZipForSecurity, sanitizeSubDomain } from "../utils/security.js";
 import { deployRateLimiter } from "../utils/rateLimiter.js";
 import { leasePort, releasePort } from "../utils/daemonClient.js";
-import { getExposedPort, normalizeEnv } from "../utils/helper.js";
+import { getExposedPort, normalizeEnv, formatEnvForDocker } from "../utils/helper.js";
+import { encryptAccessToken, decryptAccessToken } from "../utils/security.js";
 
 export function rollbackDeployment(targetDir: string, subDomain: string, userId: string) {
 
@@ -90,6 +91,7 @@ export function deployRoutes(app: express.Express) {
 
             // 3.1 Check for .env file 
             const parsedEnv = normalizeEnv(envVars);
+            Logger.info(`Parsed environment variables for deployment ${subDomain}: ${parsedEnv}`);
             // 4. Save deployment in db with status "deploying" 
             // Save the env vars 
             saveDeployment(subDomain, 0, "deploying", parsedEnv || "", user?.githubId);
@@ -149,6 +151,7 @@ export function deployRoutes(app: express.Express) {
 
                             // 5.1 Get the env vars from the database for this deployment
                             const envVars = await getDeployment(subDomain, user?.githubId) as { envVars?: string } | undefined;
+                            const decryptedEnvVars = envVars?.envVars ? decryptAccessToken(envVars.envVars) : undefined;
 
                             // 5.2 Modify the env vars to be in the format expected by Docker
                             const containerName = `${subDomain}-${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
@@ -160,7 +163,7 @@ export function deployRoutes(app: express.Express) {
                             const container = await docker.createContainer({
                                 Image: imageName,
                                 name: containerName,
-                                Env: formatEnvForDocker(envVars?.envVars), // insersts the env vars into the container
+                                Env: decryptedEnvVars ? decryptedEnvVars.split('\n') : undefined, // insersts the env vars into the container
                                 ExposedPorts: { [exposedPorts]: {} },
                                 HostConfig: {
                                     Memory: 512 * 1024 * 1024, // 512MB
