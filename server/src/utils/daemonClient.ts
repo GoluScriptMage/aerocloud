@@ -46,7 +46,7 @@ export function releasePort(port: number): Promise<void> {
             } else {
                 reject(new Error('Failed to release port'));
             }
-            console.log(`Daemon response for releasing port ${port}: ${response}`);
+            Logger.info(`Daemon response for releasing port ${port}: ${response}`);
             client.end();
         })
 

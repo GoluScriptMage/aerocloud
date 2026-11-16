@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { Logger } from "../utils/logger.js";
 import { getDeployment, updateDeployment, deleteDeployment } from "../config/db.js";
 import docker from "../config/docker.js";
+import { releasePort } from "../utils/daemonClient.js";
 
 export function stopContainer(app: express.Express) {
 
@@ -17,7 +18,7 @@ export function stopContainer(app: express.Express) {
         }
         try {
             // 2. Get containerId from database based on subdomain
-            const deployment = getDeployment(subdomain, user.githubId) as any;    
+            const deployment = getDeployment(subdomain, user.githubId) as any;
             if (!deployment) {
                 return res.status(404).json({ error: "Deployment not found." });
             }
@@ -29,7 +30,7 @@ export function stopContainer(app: express.Express) {
 
             // 3. Stop the Docker container
             const container = docker.getContainer(containerId);
-            await container.stop().catch(() => {});
+            await container.stop().catch(() => { });
 
             // 4. Update the deployment status in the database preserving port & envVars
             updateDeployment(subdomain, "stopped", containerId, deployment.port, deployment.envVars, user.githubId);
@@ -49,7 +50,7 @@ export function destroyContainer(app: express.Express) {
     app.get("/destroy/:subdomain", async (req, res) => {
         const subdomain = req.params.subdomain;
         Logger.debug(`Received request to destroy container for subdomain: ${subdomain}`);
-        const user = (req as any).user; 
+        const user = (req as any).user;
 
         // 1. Validate subdomain
         if (!subdomain) {
@@ -92,6 +93,11 @@ export function destroyContainer(app: express.Express) {
             }
 
             // 6. Delete deployment from SQLite database
+            if (deployment.port) {
+                await releasePort(deployment.port).catch((err) => {
+                    Logger.warn(`Failed to release port ${deployment.port}: ${(err as Error).message}`);
+                });
+            }
             deleteDeployment(subdomain, user.githubId);
             Logger.info(`Deployment for ${subdomain} destroyed and cleared from database.`);
 

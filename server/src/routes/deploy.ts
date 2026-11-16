@@ -151,7 +151,7 @@ export function deployRoutes(app: express.Express) {
 
                             // 5.1 Get the env vars from the database for this deployment
                             const envVars = await getDeployment(subDomain, user?.githubId) as { envVars?: string } | undefined;
-                            const decryptedEnvVars = envVars?.envVars ? decryptAccessToken(envVars.envVars) : undefined;
+                            const decryptedEnvVars = envVars?.envVars && envVars.envVars.includes(':') ? decryptAccessToken(envVars.envVars) : envVars?.envVars || "";
 
                             // 5.2 Modify the env vars to be in the format expected by Docker
                             const containerName = `${subDomain}-${crypto.randomBytes(3).toString('hex')}`; // Unique container name to avoid conflicts
@@ -163,7 +163,7 @@ export function deployRoutes(app: express.Express) {
                             const container = await docker.createContainer({
                                 Image: imageName,
                                 name: containerName,
-                                Env: decryptedEnvVars ? decryptedEnvVars.split('\n') : undefined, // insersts the env vars into the container
+                                Env: formatEnvForDocker(decryptedEnvVars), // insersts the env vars into the container
                                 ExposedPorts: { [exposedPorts]: {} },
                                 HostConfig: {
                                     Memory: 512 * 1024 * 1024, // 512MB
