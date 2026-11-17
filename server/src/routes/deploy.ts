@@ -169,7 +169,15 @@ export function deployRoutes(app: express.Express) {
                                     Memory: 512 * 1024 * 1024, // 512MB
                                     MemorySwap: 1024 * 1024 * 1024, // 1GB (disk swap + memory)
                                     NanoCpus: 1 * 1e9, // 1 CPU
-                                    PortBindings: portBindings
+                                    PortBindings: portBindings,
+
+
+                                    // New Soverign Sandboxing
+                                    NetworkMode: "aerocloud-net", // Dedicated Network mode
+                                    ReadonlyRootfs: true, // Read-only root filled 
+                                    Tmpfs: {
+                                        "/tmp": "rw,noexec,nosuid,size=64m" // temporary file system(tmpfs)
+                                    }
                                 }
                             });
 
