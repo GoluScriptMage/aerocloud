@@ -42,3 +42,6 @@ Day 20 - Finsihed the 4.5 & implemented CPU usage and other stuff
 
 Day 21 - Started the daeomon server half finsihed 
 Day 22 - Finsihed the daeomon server just connecting is left
+Day 23 - Tested & fixed the env vars injection
+Day 24 - Fixed the port release problem
+Day 25 - Implemented the docker network mode and also added the network mode check in the server start
