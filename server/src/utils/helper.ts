@@ -3,6 +3,7 @@ import fs from "fs";
 import { Logger } from "./logger.js";
 import dotenv from "dotenv";
 import { encryptAccessToken } from "./security.js";
+import docker from "../config/docker.js";
 
 
 // Function to get the exposed port of a deployment 
@@ -56,5 +57,19 @@ export function formatEnvForDocker(envJson?: string): string[] | undefined {
         return entries.length > 0 ? entries : undefined;
     } catch {
         return undefined;
+    }
+}
+
+// Function to check the network mode of the Docker container
+export async function ensureNetworkMode() {
+    const networkName = "aerocloud-net";
+    const exisitingNetworks = await docker.listNetworks();
+
+    const networkExist = exisitingNetworks.some(network => network.Name === networkName);
+    if (!networkExist) {
+        await docker.createNetwork({ Name: networkName, Driver: "bridge" });
+        Logger.info(`Created Docker network: ${networkName}`);
+    } else {
+        Logger.info(`Docker network ${networkName} already exists.`);
     }
 }

@@ -18,6 +18,7 @@ import { blockListGuard } from "./utils/blockListGuard.js";
 import { globalRateLimiter } from "./utils/rateLimiter.js";
 import { linkRepo } from "./routes/linkRepo.js";
 import { webhookRoutes } from "./routes/webhookRoute.js";
+import { ensureNetworkMode } from "./utils/helper.js";
 
 dotenv.config();
 const app = express();
@@ -51,6 +52,10 @@ getCrashLogs(app);
 linkRepo(app);
 
 // Start the server
-app.listen(3000, () => {
+app.listen(3000, async () => {
+    await ensureNetworkMode().catch((err) => {
+        Logger.error(`Failed to ensure Docker network mode: ${(err as Error).message}`);
+    });
+
     Logger.info("Server running on port 3000");
 })

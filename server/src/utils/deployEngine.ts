@@ -140,6 +140,13 @@ export async function deployFromGitTarball(
                 NanoCpus: 1 * 1e9, // 1 CPU Core
                 PortBindings: {
                     "3000/tcp": [{ HostPort: dockerPort.toString() }],
+                },
+
+                // New Sovereign Sandboxing
+                NetworkMode: "aerocloud-net", // Dedicated Network mode
+                ReadonlyRootfs: true, // Read-only root filesystem
+                Tmpfs: {
+                    "/tmp": "rw,noexec,nosuid,size=64m" // Temporary file system (tmpfs)
                 }
             }
         });
@@ -198,7 +205,7 @@ export async function deployFromGitTarball(
     } catch (containerErr) {
         Logger.error(`[DeployEngine] Container startup failed: ${(containerErr as Error).message}`);
         await releasePort(dockerPort);
-        
+
         rollbackDeployment(targetDir, subDomain, userId);
         throw containerErr;
     }
