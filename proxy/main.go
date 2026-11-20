@@ -48,6 +48,9 @@ func (rt *RouteTable) Delete(subDomain string) {
 
 // Handle the request and proxy it to the appropriate port based on the subdomain
 func (rt *RouteTable) ProxyHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Getting a req")
+
+	
 	// Step A: Get the subdomain from the request
 	subDomain := strings.Split(r.Host, ".")[0]
 
@@ -106,7 +109,6 @@ func main() {
 	table.HydrateFromDB("../server/aerocloud.db") // Hydrate the route table from the database
 
 	http.HandleFunc("/", table.ProxyHandler)
-
 
 	// Start the HTTP server
 	fmt.Println("Starting the HTTP Server...")

@@ -57,5 +57,15 @@ app.listen(3000, async () => {
         Logger.error(`Failed to ensure Docker network mode: ${(err as Error).message}`);
     });
 
+    await fetch("http://test-app-111.localhost:8080").then(async (response) => {
+        if (!response.ok) {
+            throw new Error(`Failed to fetch from proxy: ${response.status} ${response.statusText}`);
+        }
+        const body = response.text();
+        Logger.log(`Successfully fetched from proxy: ${body}`);
+    }).catch((error) => {
+        Logger.error(`Failed to fetch from proxy: ${(error as Error).message}`);
+    });
+
     Logger.info("Server running on port 3000");
 })
