@@ -1,7 +1,0 @@
-{
-    "name": "proxy",
-    "publish": ".",
-    "buildCommand": "",
-    "repo": "",
-    "branch": "main"
-}
