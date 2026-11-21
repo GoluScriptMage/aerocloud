@@ -2,19 +2,28 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Route Table to store the routes
 type RouteTable struct {
 	mu     sync.RWMutex
 	routes map[string]int
+}
+
+// Struct for AddRouteRequest
+type AddRouteRequest struct {
+	subDomain string `json:"subDomain"`
+	port      int    `json:"port"`
 }
 
 // Intitialize the route table
@@ -50,7 +59,6 @@ func (rt *RouteTable) Delete(subDomain string) {
 func (rt *RouteTable) ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Getting a req")
 
-	
 	// Step A: Get the subdomain from the request
 	subDomain := strings.Split(r.Host, ".")[0]
 
@@ -104,13 +112,65 @@ func (rt *RouteTable) HydrateFromDB(dbPath string) error {
 	return nil
 }
 
+// POST /routes
+func (rt *RouteTable) AddRouteHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Step A: Decode the body into req with subdomain & port
+	var req AddRouteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Step B: Addthe route data in routeTable
+	if req.subDomain == "" || req.port <= 0 {
+		http.Error(w, "Invalid subdomain or port", http.StatusBadRequest)
+		return
+	}
+	rt.Set(req.subDomain, req.port)
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Route added successfully"))
+}
+
+// GET /routes/{subdomain}
+func (rt *RouteTable) DeleteRouteHandler(w http.ResponseWriter, r *http.Request) {
+	// Step A: Extract the subdomain from the url path & check if it exists
+	subDomain := r.PathValue("subdomain")
+	if subDomain == "" {
+		http.Error(w, "Subdomain not provided", http.StatusBadRequest)
+		return
+	}
+
+	rt.Delete(subDomain)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Route deleted successfully"))
+}
+
 func main() {
 	table := intitalizeRouteTable()
 	table.HydrateFromDB("../server/aerocloud.db") // Hydrate the route table from the database
 
-	http.HandleFunc("/", table.ProxyHandler)
+	// 1. Admin Mux for Control Plane
+	adminMux := http.NewServeMux()
+	adminMux.HandleFunc("POST /routes", table.AddRouteHandler)
+	adminMux.HandleFunc("DELETE /routes/{subdomain}", table.DeleteRouteHandler)
 
-	// Start the HTTP server
-	fmt.Println("Starting the HTTP Server...")
-	http.ListenAndServe(":8080", nil)
+	// 2. Start the admin server in goRoutine
+	go func() {
+		fmt.Println("Admin Plane server running on port :8081")
+		if err := http.ListenAndServe(":8081", adminMux); err != nil {
+			log.Fatalf("Admin server failed: %v", err)
+		}
+	}()
+
+	// 3. Proxy Mux for Data Plane
+	proxyMux := http.NewServeMux()
+	proxyMux.HandleFunc("/", table.ProxyHandler)
+
+	// 4. Start the proxy server
+	fmt.Println("Proxy server running on port :8080")
+	if err := http.ListenAndServe(":8080", proxyMux); err != nil {
+		log.Fatalf("Proxy server failed: %v", err)
+	}
 }
