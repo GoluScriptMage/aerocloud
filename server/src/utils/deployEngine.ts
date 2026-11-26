@@ -152,6 +152,27 @@ export async function deployFromGitTarball(
         });
 
         await container.start();
+
+        // 8.1 Register the route with the proxy server
+        try {
+            const response = await fetch(`http://localhost:8081/routes`, {
+                'method': 'POST',
+                'headers': {
+                    'Content-Type': 'application/json'
+                },
+                'body': JSON.stringify({
+                    subDomain: subDomain,
+                    port: dockerPort
+                })
+            })
+            if (!response.ok) {
+                throw new Error(`Proxy server responded with status ${response.status}`);
+            }
+        } catch (err) {
+            Logger.error(`[DeployEngine] Failed to register route with proxy: ${(err as Error).message}`);
+            throw new Error(`Failed to register route with proxy: ${(err as Error).message}`);
+        }
+
         Logger.success(`[DeployEngine] Container started successfully for ${subDomain} on port ${dockerPort}`);
 
         /**
