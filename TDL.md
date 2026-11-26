@@ -45,3 +45,5 @@ Day 22 - Finsihed the daeomon server just connecting is left
 Day 23 - Tested & fixed the env vars injection
 Day 24 - Fixed the port release problem
 Day 25 - Implemented the docker network mode and also added the network mode check in the server start
+Day 26 - Implemented the proxy server and also added the proxy check in the server start
+Day 27 - Implemented the delete routeMappning for rollabck container and also added proxy route mapping for git link container

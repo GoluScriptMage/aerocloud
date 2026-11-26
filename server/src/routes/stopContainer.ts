@@ -98,6 +98,19 @@ export function destroyContainer(app: express.Express) {
                     Logger.warn(`Failed to release port ${deployment.port}: ${(err as Error).message}`);
                 });
             }
+            // 7. Delete deployment from proxy server via admin API
+            try {
+                const response = await fetch(`http://localhost:8081/routes/${subdomain}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to delete route from proxy: ${response.status} ${response.statusText}`);
+                }
+                Logger.info(`Route for subdomain ${subdomain} deleted from proxy server.`);
+            } catch (err) {
+                Logger.warn(`Failed to delete route from proxy server: ${(err as Error).message}`);
+            }
             deleteDeployment(subdomain, user.githubId);
             Logger.info(`Deployment for ${subdomain} destroyed and cleared from database.`);
 

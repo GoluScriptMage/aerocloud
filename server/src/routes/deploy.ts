@@ -21,7 +21,24 @@ import { encryptAccessToken, decryptAccessToken } from "../utils/security.js";
 export function rollbackDeployment(targetDir: string, subDomain: string, userId: string) {
 
     try {
+        // Delete the deployment record from the database 
         deleteDeployment(subDomain, userId);
+
+        fetch(`http://localhost:8081/routes/${subDomain}`, {
+            'method': "DELETE",
+            'headers': {
+                'Content-Type': 'application/json'
+            }
+        }).then((response) => {
+            if (!response.ok) {
+                Logger.warn(`Failed to remove route for subdomain ${subDomain} from proxy server: ${response.status} ${response.statusText}`);
+            } else {
+                Logger.info(`Route for subdomain ${subDomain} removed from proxy server.`);
+            }
+        }).catch((err) => {
+            Logger.error(`Error while removing route for subdomain ${subDomain} from proxy server: ${(err as Error).message}`);
+        });
+
         if (fs.existsSync(targetDir)) {
             fs.rmSync(targetDir, { recursive: true, force: true });
             Logger.info(`Rollback successful: Deployment ${subDomain} removed and directory ${targetDir} deleted.`);
@@ -214,7 +231,26 @@ export function deployRoutes(app: express.Express) {
                                 }) + "\n");
                                 res.end();
                                 return;
+                            }
+                            // 8. Add the route to the proxy server
+                            try {
+                                const response = await fetch(`http://localhost:8081/routes`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        subDomain: subDomain,
+                                        port: dockerPort
+                                    })
+                                });
 
+                                if (!response.ok) {
+                                    throw new Error(`Failed to add route to proxy: ${response.status} ${response.statusText}`);
+                                }
+                                Logger.info(`Route for subdomain ${subDomain} added to proxy server.`);
+                            } catch (err) {
+                                Logger.warn(`Failed to add route to proxy server: ${(err as Error).message}`);
                             }
 
                             updateDeployment(subDomain, "deployed", container.id, dockerPort, envVars?.envVars, user?.githubId);
