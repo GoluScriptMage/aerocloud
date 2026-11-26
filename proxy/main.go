@@ -22,8 +22,8 @@ type RouteTable struct {
 
 // Struct for AddRouteRequest
 type AddRouteRequest struct {
-	subDomain string `json:"subDomain"`
-	port      int    `json:"port"`
+	SubDomain string `json:"subDomain"`
+	Port      int    `json:"port"`
 }
 
 // Intitialize the route table
@@ -122,12 +122,14 @@ func (rt *RouteTable) AddRouteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Printf("Adding route: %s -> %d\n", req.SubDomain, req.Port)
+
 	// Step B: Addthe route data in routeTable
-	if req.subDomain == "" || req.port <= 0 {
+	if req.SubDomain == "" || req.Port <= 0 {
 		http.Error(w, "Invalid subdomain or port", http.StatusBadRequest)
 		return
 	}
-	rt.Set(req.subDomain, req.port)
+	rt.Set(req.SubDomain, req.Port)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Route added successfully"))
 }
