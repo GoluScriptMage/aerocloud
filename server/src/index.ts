@@ -19,6 +19,7 @@ import { globalRateLimiter } from "./utils/rateLimiter.js";
 import { linkRepo } from "./routes/linkRepo.js";
 import { webhookRoutes } from "./routes/webhookRoute.js";
 import { ensureNetworkMode } from "./utils/helper.js";
+import docker from "./config/docker.js";
 
 dotenv.config();
 const app = express();
@@ -51,11 +52,43 @@ destroyContainer(app);
 getCrashLogs(app);
 linkRepo(app);
 
-// Start the server
-app.listen(3000, async () => {
+// Function for runnnig checks for server 
+async function runPreflight() {
+    // Check if docker is running
+    try {
+        docker.ping()
+        if (!fs.existsSync("/tmp/aerocloud.sock")) {
+            Logger.error(`Aerocloud socket not found at /tmp/aerocloud.sock. Please ensure the Aerocloud service is running.`);
+        } else {
+            Logger.success(`Aerocloud socket found at /tmp/aerocloud.sock.`);
+        }
+        // Check if Proxy server running
+        fetch("http://127.0.0.1:8081/routes/health",)
+            .then((response) => {
+                if (!response.ok) {
+                    Logger.error(`Proxy server is not running or is not accessible.`);
+                } else {
+                    Logger.success(`Proxy server is running and accessible.`);
+                }
+
+            })
+            .catch((error) => {
+                Logger.error(`Failed to check Proxy server: ${(error as Error).message}`);
+            });
+    } catch (error) {
+        Logger.error(`Failed to ping Docker: ${(error as Error).message}`);
+    }
+
+
+}
+
+runPreflight().then(async () => {
     await ensureNetworkMode().catch((err) => {
         Logger.error(`Failed to ensure Docker network mode: ${(err as Error).message}`);
     });
 
-    Logger.info("Server running on port 3000");
+    app.listen(process.env.SERVER_PORT, async () => {
+        Logger.info("Server running on port " + process.env.SERVER_PORT);
+    })
+
 })
