@@ -149,6 +149,11 @@ func (rt *RouteTable) DeleteRouteHandler(w http.ResponseWriter, r *http.Request)
 	w.Write([]byte("Route deleted successfully"))
 }
 
+func (rt *RouteTable) HealthRouteHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Proxy Server running"))
+}
+
 func main() {
 	table := intitalizeRouteTable()
 	table.HydrateFromDB("../server/aerocloud.db") // Hydrate the route table from the database
@@ -157,6 +162,7 @@ func main() {
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("POST /routes", table.AddRouteHandler)
 	adminMux.HandleFunc("DELETE /routes/{subdomain}", table.DeleteRouteHandler)
+	adminMux.HandleFunc("GET /routes/health", table.HealthRouteHandler)
 
 	// 2. Start the admin server in goRoutine
 	go func() {
