@@ -1,91 +1,71 @@
 # ☁️ AeroCloud
 
-> **A minimalist, terminal-first developer Platform-as-a-Service (PaaS) engine designed to sandbox, build, route, and orchestrate web services with zero configuration.**
+> **A terminal-first, self-hosted Platform-as-a-Service (PaaS) orchestrator designed to sandbox, build, and route containerized web workloads on bare-metal infrastructure with zero cloud vendor lock-in.**
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Go Port Scanner](https://img.shields.io/badge/go-%3E%3D1.22-00ADD8.svg)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-00ADD8.svg)](https://golang.org/)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
-[![Architecture: Multi--Tenant](https://img.shields.io/badge/Architecture-Multi--Tenant-blueviolet.svg)](#-architecture--internals)
+[![Architecture: Control + Data Plane](https://img.shields.io/badge/Architecture-Control%20%2B%20Data%20Plane-blueviolet.svg)](#-architecture--internals)
 
 ---
 
 ## 🏛️ What is AeroCloud?
 
-AeroCloud is a self-hosted, lightweight PaaS orchestrator (akin to an open-source, local-first Vercel or Railway). It allows developers to deploy full-stack applications directly from their terminal or via Git pushes without writing complex Kubernetes configurations, configuring reverse proxy tables manually, or dealing with container networking headaches.
+AeroCloud is a self-hosted, CLI-driven PaaS (a local-first alternative to Vercel/Render). It lets developers deploy applications directly from their terminal or via GitHub push webhooks—automating Docker builds, port leasing, container sandboxing, and subdomain reverse proxying without Kubernetes or manual proxy configs.
 
 ```text
                                  AEROCLOUD PIPELINE
-                                 
+
   $ aerocloud deploy
           │
-          ├──► 1. Smart Stream Archive (.zip generated excluding build artifacts)
-          ├──► 2. SHA-256 Auth & Rate Limit Validation
-          ├──► 3. Native Dockerfile Detection / Generation
-          ├──► 4. Linux cgroups Sandboxing (512MB RAM / 1 CPU limit)
-          ├──► 5. O(log N) Port Scan Allocation via Embedded Go Binary
-          ├──► 6. Real-time Chunked Build Log Streaming (SSE)
-          └──► 7. Live Subdomain Reverse Proxying (:8080)
+          ├──► 1. Smart Archive Bundle (.zip excluding node_modules/.git)
+          ├──► 2. SHA-256 Auth, Rate Limiter & Zip-Slip / Size Guards
+          ├──► 3. O(1) Port Lease via Go Micro-Daemon (/tmp/aerocloud.sock)
+          ├──► 4. Dockerfile Detection & Real-Time Chunked Build Logs
+          ├──► 5. Sandboxed Container Launch (aerocloud-net, ReadonlyRootfs, cgroups)
+          ├──► 6. 1.5s Boot Liveness Check + Automatic Rollback on Failure
+          └──► 7. Dynamic Go Reverse Proxy (:8080) & Optional HTTPS Tunnel (*.aerohost.tech)
 ```
 
 ---
 
 ## ✨ Engineering Highlights
 
-* 🚀 **Zero-Config Terminal Deployments:** Run `aerocloud deploy` inside any Node.js/TypeScript project; AeroCloud bundles the repository, prepares build contexts, and provisions isolated containers automatically.
-* 🛡️ **Zero-Trust Security & Hardened Vault:**
-  * **Timing-Attack Immune:** Constant-time bitwise XOR comparison (`crypto.timingSafeEqual`) for all API keys and bearer tokens.
-  * **DNS & Path Traversal Guard:** RFC-1123 DNS regex sanitization stops path traversal and Docker container name hijacking at ingress.
-  * **Zip-Bomb & Zip-Slip Defense:** Pre-extraction memory ceilings (25MB) and directory boundary verification prior to uncompressing archives.
-  * **Multi-Tier Rate Limiting:** Global sliding-window limiter (100 reqs/15m) + strict deploy rate limiter (5 deploys/15m).
-  * **Hybrid IP & User Blacklist:** SQLite-persisted blocklist cached in $O(1)$ in-memory lookup sets.
-* ⚡ **High-Performance Port Allocation Engine:** Low-level Go binary (`goportscan`) embedded directly into Node.js via child process pipes, resolving machine-global ports in $O(\log N)$ time to eliminate race conditions.
-* 🐳 **Linux cgroups Resource Sandboxing:** Hard runtime quotas enforced on every container (`Memory: 512MB`, `MemorySwap: 1GB`, `NanoCpus: 1.0 CPU`) to prevent noisy neighbor memory exhaustion or rogue crypto-mining.
-* 🌐 **Dynamic Subdomain Host Routing:** Integrated reverse proxy on port `8080` dynamically resolves `http://<subdomain>.localhost:8080` by inspecting `Host` headers and mapping traffic to active container sockets.
-* 📡 **Real-time Chunked Build Streaming:** Dockerode build tar streams are multiplexed and streamed line-by-line over chunked HTTP to the CLI with ANSI color formatting.
+* 🚀 **Terminal-First & Git-Push Deploys:** Deploy directly via `aerocloud deploy` or link a GitHub repo (`aerocloud link`) for HMAC-SHA256 verified webhook auto-deploys with zero-downtime container swaps.
+* ⚡ **O(1) Unix-Socket Port Allocator (`daemon/`):** Background Go micro-daemon listening on `/tmp/aerocloud.sock` using a thread-safe 64-bit bitset (`[1000]uint64`) to lease and release container ports in $<0.1\text{ms}$ without SQLite lock contention.
+* 🌐 **High-Throughput Go Reverse Proxy (`proxy/`):** Dual-server Go proxy (`:8080` data plane, `:8081` admin API `POST/DELETE /routes`) backed by an in-memory `sync.RWMutex` routing table hydrated from SQLite on boot.
+* 🐳 **Sovereign Container Sandboxing:** Enforces dedicated `aerocloud-net` bridge isolation, `ReadonlyRootfs`, ephemeral `tmpfs` (`/tmp`), and Linux cgroups caps (`512MB RAM`, `1.0 CPU`).
+* 🔐 **Zero-Trust Security & Secret Vault:**
+  * **Encrypted Env Vars:** Environment secrets encrypted at rest using **AES-256-GCM AEAD**.
+  * **Constant-Time Auth:** `crypto.timingSafeEqual` for API key / bearer verification + GitHub OAuth.
+  * **Ingress Guards:** RFC-1123 subdomain sanitization, 25MB/100MB Zip-Bomb & Zip-Slip checks, IP/user blocklists, and multi-tier rate limiting.
+* 🩺 **Preflight & Self-Healing Rollbacks:** Server startup verifies Docker daemon, Unix socket, and Proxy `:8081` readiness; failed builds or boot crashes automatically release leased ports, delete stale DB/directory state, and purge proxy routes.
+
+---
+
+## 📊 Reverse Proxy Benchmarks (Autocannon)
+
+Load-tested at **10,000 requests** and **100 concurrent connections** comparing the legacy SQLite-backed Node.js proxy against the in-memory Go Reverse Proxy:
+
+| Metric | Legacy Node/SQLite Proxy | Go Reverse Proxy (`proxy/`) | Improvement |
+| :--- | :--- | :--- | :--- |
+| **Average Latency** | `4.21 ms` | `2.01 ms` | **-52.2%** |
+| **Median Latency (p50)** | `4.00 ms` | `1.00 ms` | **-75.0%** |
+| **Max / Tail Latency** | `222.00 ms` | `31.00 ms` | **-86.0%** |
+| **Latency StdDev** | `9.11 ms` | `3.47 ms` | **-61.9%** |
 
 ---
 
 ## 🏗️ Architecture & Internals
 
-AeroCloud is structured as a modular, three-tier microservice architecture:
-
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              AEROCLOUD SYSTEM MAP                           │
-└─────────────────────────────────────────────────────────────────────────────┘
-
- [ Terminal Client ] 
-        │
-        │  POST /deploy (Bearer Token + Multipart ZIP)
-        ▼
- ┌───────────────────────────────────────────────────────────────────────────┐
- │  AEROCLOUD SERVER (:3000)                                                 │
- │                                                                           │
- │  [ Ingress Guards ]                                                       │
- │  ├── 1. IP & User Blacklist Guard (In-Memory Set + SQLite)                │
- │  ├── 2. Rate Limiting Middleware (Global & Deploy limits)                 │
- │  └── 3. Constant-Time Auth Middleware (SHA-256 API Key Hash)              │
- │                                                                           │
- │  [ Orchestration Engine ]                                                 │
- │  ├── 4. Archive Auditor (Zip-Slip & 25MB/100MB Decompression limits)      │
- │  ├── 5. Dockerfile Synthesizer (Multi-stage production build templates)    │
- │  ├── 6. Port Allocator (Embedded Go Port Scanner)                         │
- │  └── 7. Container Lifecycle Manager (cgroups 512MB/1CPU enforcement)      │
- └─────────────────┬───────────────────────────────────────┬─────────────────┘
-                   │                                       │
-                   ▼ (Metadata State)                      ▼ (Docker Socket)
-        ┌──────────────────────┐               ┌──────────────────────┐
-        │      SQLite DB       │               │    Docker Engine     │
-        │  (Users/Deployments) │               │ (Isolated Containers)│
-        └──────────┬───────────┘               └──────────┬───────────┘
-                   │                                       │
-                   └───────────────────┬───────────────────┘
-                                       │
-                                       ▼ (Proxy Map Query)
- ┌───────────────────────────────────────────────────────────────────────────┐
- │  AEROCLOUD PROXY GATEWAY (:8080)                                          │
- │  Inspects `Host: <subdomain>.localhost:8080` ──► Proxies to Container     │
- └───────────────────────────────────────────────────────────────────────────┘
+[Internet / Browser] ──HTTPS──▶ [Cloudflare Edge] ──(Tunnel)──▶ [cloudflared (--tunnel)]
+                                                                         │
+[Local Client] ────────HTTP────────────────────────────────────▶ [Go Proxy :8080]
+                                                                         ▲
+[Go Port Daemon (/tmp/aerocloud.sock)] ◀─IPC─ [Node Server :3000] ───────┴── (:8081 Admin)
+                                                     │
+                                              [Docker Engine] ──▶ [Sandboxed Containers]
 ```
 
 ---
@@ -94,98 +74,62 @@ AeroCloud is structured as a modular, three-tier microservice architecture:
 
 ```text
 aerocloud/
+├── dev.sh               # Single-command orchestrator (Docker guard, orphan cleanup, --tunnel)
 ├── cli/                 # Developer Terminal CLI (Commander, Prompts, Archiver)
-├── server/              # Central PaaS Orchestrator (Express, Dockerode, SQLite)
+├── server/              # TypeScript Control Plane (:3000) (Express, Dockerode, SQLite WAL)
 │   ├── src/config/      # SQLite schemas, Docker socket binding
-│   ├── src/routes/      # Auth, Deploy, Lifecycle (stop, destroy, logs)
-│   └── src/utils/       # Security guards, Go port scanner wrapper, Rate limiters
-├── proxy/               # Subdomain HTTP Reverse Proxy (:8080)
-└── .github/             # GitHub actions & workflows
+│   ├── src/routes/      # Auth, Deploy, Webhook CD, Lifecycle (stop, destroy, logs)
+│   └── src/utils/       # DeployEngine, Daemon IPC client, Security guards, Rate limiters
+├── daemon/              # Go Port Allocator Micro-Daemon (/tmp/aerocloud.sock)
+└── proxy/               # Go Reverse Proxy (:8080 Data Plane, :8081 Admin API)
 ```
 
-| Component | Language / Runtime | Core Libraries |
+| Component | Language / Runtime | Core Tech |
 | :--- | :--- | :--- |
 | **CLI** | TypeScript (Node v24+) | `commander`, `prompts`, `archiver`, `chalk` |
-| **Server** | TypeScript (Node v24+) | `express`, `dockerode`, `better-sqlite3`, `multer`, `adm-zip`, `tar` |
-| **Port Engine** | Go 1.22+ | Native Go `net` sockets + binary search |
-| **Proxy** | TypeScript (Node v24+) | `http-proxy`, native `node:sqlite` |
+| **Control Plane** | TypeScript (Node v24+) | `express`, `dockerode`, `better-sqlite3` (WAL), `tar`, `multer` |
+| **Port Daemon** | Go 1.22+ | Unix Domain Sockets (`/tmp/aerocloud.sock`), 64-bit Bitset Allocator |
+| **Reverse Proxy** | Go 1.22+ | `net/http/httputil`, `sync.RWMutex`, `go-sqlite3` |
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-* **Node.js** $\ge \text{v24.0.0}$
-* **Docker Desktop** / Docker Engine running locally
-* **Git**
+* **Node.js** $\ge \text{v24.0.0}$ & **Go** $\ge \text{1.22}$
+* **Docker Desktop** / Docker Engine
+* **Cloudflared** *(optional, for live `*.aerohost.tech` HTTPS tunneling)*
 
-### 1. Installation
-
-Clone the repository and install dependencies across all three modules:
-
+### 1. Installation & Environment Setup
 ```bash
 git clone https://github.com/GoluScriptMage/aerocloud.git
 cd aerocloud
 
-# Install CLI dependencies
-cd cli && npm install
-
-# Install Server dependencies
-cd ../server && npm install
-
-# Install Proxy dependencies
-cd ../proxy && npm install
+(cd cli && npm install)
+(cd server && npm install)
 ```
 
----
-
-### 2. Environment Setup
-
-Create `.env` inside `server/`:
-
+Create `server/.env`:
 ```env
-PORT=3000
+SERVER_PORT=3000
 GITHUB_CLIENT_ID=your_github_oauth_client_id
 GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
 GITHUB_REDIRECT_URI=http://localhost:3000/auth/github/callback
+WEBHOOK_SECRET=your_webhook_secret
 ```
 
----
-
-### 3. Running AeroCloud Locally
-
-AeroCloud runs via three lightweight terminal processes:
-
-#### Terminal 1: Orchestration Server (:3000)
-```bash
-cd server
-npm run dev
-# 🚀 AeroCloud Server running on port 3000
-```
-
-#### Terminal 2: Subdomain Reverse Proxy (:8080)
-```bash
-cd proxy
-npm run dev
-# 🚀 AeroCloud Proxy Server listening on PORT: 8080
-```
-
-#### Terminal 3: Developer CLI
-Authenticate your CLI and deploy any application:
+### 2. Single-Command Launch (`dev.sh`)
+Start Docker (auto-launches on macOS if closed), Go Port Daemon, Go Reverse Proxy, and the Control Plane in one command:
 
 ```bash
-# 1. Login with GitHub OAuth
-npx tsx /path/to/aerocloud/cli/src/index.ts auth
+# Local mode (*.localhost:8080)
+./dev.sh
 
-# 2. Navigate to your app
-cd /path/to/your-app
-
-# 3. Initialize config
-npx tsx /path/to/aerocloud/cli/src/index.ts init
-
-# 4. Deploy!
-npx tsx /path/to/aerocloud/cli/src/index.ts deploy
+# Live HTTPS mode via Cloudflare Tunnel (*.aerohost.tech)
+./dev.sh --tunnel
 ```
+
+*(Press `Ctrl+C` to gracefully stop all background Go processes and clean `/tmp/aerocloud.sock`.)*
 
 ---
 
@@ -193,13 +137,14 @@ npx tsx /path/to/aerocloud/cli/src/index.ts deploy
 
 | Command | Usage | Description |
 | :--- | :--- | :--- |
-| `aerocloud auth` | `aerocloud auth` | Initiates local HTTP loopback and logs in via GitHub OAuth. |
-| `aerocloud init` | `aerocloud init` | Generates a clean `aerocloud.json` project configuration file. |
-| `aerocloud deploy`| `aerocloud deploy`| Bundles, streams, builds, and launches container deployment. |
-| `aerocloud list` | `aerocloud list` | Lists all active deployments with RAM usage, port bindings, and uptime. |
-| `aerocloud logs` | `aerocloud logs <name>` | Streams live stdout/stderr logs from the running container. |
-| `aerocloud stop` | `aerocloud stop <name>` | Gracefully stops the container without deleting database records. |
-| `aerocloud destroy`| `aerocloud destroy <name>` | Shuts down container, deletes images, and purges deployment records. |
+| `aerocloud auth` | `aerocloud auth` | Authenticates CLI via local HTTP loopback GitHub OAuth. |
+| `aerocloud init` | `aerocloud init` | Generates an `aerocloud.json` project configuration file. |
+| `aerocloud deploy` | `aerocloud deploy` | Bundles, streams build logs, sandboxes, and routes the container. |
+| `aerocloud link` | `aerocloud link` | Interactive GitHub repo selector for webhook auto-deploys. |
+| `aerocloud list` | `aerocloud list` | Lists active deployments with RAM usage, ports, and status. |
+| `aerocloud logs` | `aerocloud logs <name>` | Streams live stdout/stderr logs (`-f` to follow). |
+| `aerocloud stop` | `aerocloud stop <name>` | Gracefully stops the container and releases its leased port. |
+| `aerocloud destroy` | `aerocloud destroy <name>` | Removes container, image, proxy route, and DB record. |
 
 ---
 
@@ -214,21 +159,15 @@ npx tsx /path/to/aerocloud/cli/src/index.ts deploy
 }
 ```
 
-* `name`: Custom subdomain assigned on deployment (`http://my-portfolio.localhost:8080`).
-* `publish`: Target build directory to bundle (e.g. `.` or `dist`).
-* `buildCommand`: Pre-deploy build command executed before bundling.
-
 ---
 
 ## 🛡️ Security Policy
 
-AeroCloud is engineered with defense-in-depth principles:
-* All database queries utilize **parameterized prepared statements** preventing SQL injection.
-* File uploads enforce **25MB memory ceilings** and recursive path boundary validation to prevent Zip-Slip directory escape.
-* Container runtime privileges enforce **cgroups memory/CPU caps** to prevent resource exhaustion.
-* Subdomains must strictly match RFC-1123 DNS naming conventions (`/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/`).
-
-To report a vulnerability or security flaw, please open a private security advisory on GitHub.
+* Parameterized SQLite prepared statements across all queries.
+* AES-256-GCM encryption for stored environment variables and OAuth tokens.
+* 25MB upload / 100MB decompression ceilings with Zip-Slip path boundary checks.
+* Hard container cgroups limits (`512MB RAM`, `1 CPU`), `ReadonlyRootfs`, and `aerocloud-net` isolation.
+* RFC-1123 DNS subdomain validation (`/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/`).
 
 ---
 
