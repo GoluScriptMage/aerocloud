@@ -63,13 +63,17 @@ export function formatEnvForDocker(envJson?: string): string[] | undefined {
 // Function to check the network mode of the Docker container
 export async function ensureNetworkMode() {
     const networkName = "aerocloud-net";
-    const exisitingNetworks = await docker.listNetworks();
+    const existingNetworks = await docker.listNetworks();
 
-    const networkExist = exisitingNetworks.some(network => network.Name === networkName);
+    const networkExist = existingNetworks.some(network => network.Name === networkName);
     if (!networkExist) {
-        await docker.createNetwork({ Name: networkName, Driver: "bridge" });
-        Logger.info(`Created Docker network: ${networkName}`);
+        const res = await docker.createNetwork({ Name: networkName, Driver: "bridge" });
+        if (!res) {
+            throw new Error(`Failed to create Docker network ${networkName}.`);
+            return null;
+        }
+        Logger.system(`Created Docker network: ${networkName}`);
     } else {
-        Logger.info(`Docker network ${networkName} already exists.`);
+        Logger.system(`Docker network ${networkName} already exists.`);
     }
 }

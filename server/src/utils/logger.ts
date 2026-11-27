@@ -36,6 +36,10 @@ export class Logger {
         console.log(`${chalk.gray(this.timestamp)} ${chalk.magentaBright.bold("[DEBUG]")} ${this.formatMessage(message)}`);
     }
 
+    static system(message: any): void {
+        console.log(`${chalk.gray(this.timestamp)} ${chalk.cyanBright.bold("[SYSTEM]")} ${this.formatMessage(message)}`);
+    }
+
     static log(message: any): void {
         console.log(`${chalk.dim(this.formatMessage(message))}`);
         // console.log(`${chalk.gray(this.timestamp)} ${chalk.whiteBright.bold("[LOG]")} ${this.formatMessage(message)}`);

@@ -56,39 +56,38 @@ linkRepo(app);
 async function runPreflight() {
     // Check if docker is running
     try {
-        docker.ping()
-        if (!fs.existsSync("/tmp/aerocloud.sock")) {
-            Logger.error(`Aerocloud socket not found at /tmp/aerocloud.sock. Please ensure the Aerocloud service is running.`);
-        } else {
-            Logger.success(`Aerocloud socket found at /tmp/aerocloud.sock.`);
+        const dockerRes = await docker.ping();
+        if (!dockerRes) {
+            throw new Error(`Docker ping failed. Please ensure Docker is running.`);
         }
-        // Check if Proxy server running
-        fetch("http://127.0.0.1:8081/routes/health",)
-            .then((response) => {
-                if (!response.ok) {
-                    Logger.error(`Proxy server is not running or is not accessible.`);
-                } else {
-                    Logger.success(`Proxy server is running and accessible.`);
-                }
-
-            })
-            .catch((error) => {
-                Logger.error(`Failed to check Proxy server: ${(error as Error).message}`);
-            });
+        Logger.system("Docker daemon is running and reachable.");
     } catch (error) {
-        Logger.error(`Failed to ping Docker: ${(error as Error).message}`);
+        throw new Error(`Docker is not running or not reachable. Please ensure Docker is installed and running. Error: ${(error as Error).message}`);
     }
 
 
+    if (!fs.existsSync("/tmp/aerocloud.sock")) {
+        Logger.warn(`Aerocloud socket not found at /tmp/aerocloud.sock. Port leasing will fail until daemon starts.`);
+    } else {
+        Logger.system(`Aerocloud socket found at /tmp/aerocloud.sock.`);
+    }
+    // Check if Proxy server running
+    try {
+        await fetch("http://127.0.0.1:8081");
+        Logger.system(`Proxy server (:8081) is running and reachable.`);
+    } catch (error) {
+        Logger.warn(`Proxy server (:8081) is not reachable: ${(error as Error).message}`);
+    }
 }
 
+const PORT = process.env.SERVER_PORT || 3000;
+
 runPreflight().then(async () => {
-    await ensureNetworkMode().catch((err) => {
-        Logger.error(`Failed to ensure Docker network mode: ${(err as Error).message}`);
+    await ensureNetworkMode();
+    app.listen(PORT, () => {
+        Logger.system("Server running on port " + PORT);
     });
-
-    app.listen(process.env.SERVER_PORT, async () => {
-        Logger.info("Server running on port " + process.env.SERVER_PORT);
-    })
-
-})
+}).catch((err) => {
+    Logger.error(`Preflight checks failed: ${(err as Error).message}`);
+    process.exit(1);
+});

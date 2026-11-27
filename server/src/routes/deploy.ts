@@ -139,6 +139,7 @@ export function deployRoutes(app: express.Express) {
                         const errorMsg = err ? err.message : "Docker build stream is null.";
                         Logger.error(`Docker build initiation failed: ${errorMsg}`);
                         await releasePort(dockerPort);
+                        await rollbackDeployment(targetDir, subDomain, user?.githubId);
                         res.status(500).write(JSON.stringify({
                             type: "result",
                             status: "failed",
@@ -153,6 +154,7 @@ export function deployRoutes(app: express.Express) {
                         // Check if the build process finished with an error
                         if (onFinished) {
                             Logger.error('Docker image build failed');
+                            await rollbackDeployment(targetDir, subDomain, user?.githubId);
                             await releasePort(dockerPort);
                             res.status(500).write(JSON.stringify({
                                 type: "result",
